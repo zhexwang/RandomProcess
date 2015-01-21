@@ -1,9 +1,0 @@
-#ifndef _GADGET_H_
-#define _GADGET_H_
-#include "inst_table.h"
-
-
-extern void scanGadgetFromRet(ReadElf &elf, Trie *trie);
-//extern void selectGadgetToFillTable(Trie *trie, InstTable &instTable);
-
-#endif
