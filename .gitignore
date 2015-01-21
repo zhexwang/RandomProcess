@@ -1,0 +1,6 @@
+/build
+random
+*.o
+*.d
+*.log
+

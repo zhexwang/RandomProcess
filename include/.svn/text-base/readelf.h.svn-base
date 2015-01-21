@@ -1,0 +1,51 @@
+#ifndef _READ_ELF_H
+#define _READ_ELF_H
+#include "type.h"
+#include <vector>
+#include <iostream>
+using namespace std;
+
+typedef struct {
+    //segment range:[map_start, map_end]
+    ADDR map_start;//segment in rop process map start addr
+    ADDR map_end;//segment in rop process map end addr
+    ADDR virtual_addr;//current segment real virtual address
+}X_INFO;
+
+typedef struct {
+    ADDR virtual_addr;//the real inst addr
+    int x_region_index;//this inst in which x_region
+}INST_INFO;
+
+class ReadElf{
+    protected:
+        string file_name;//file name
+        int fd;//target elf fd num
+        void *elf_map_start;//target file mmap start address
+        size_t elf_size;//target file size
+        vector<X_INFO> x_region;//executable segment
+        bool isSharedObjectFile;
+        vector<INST_INFO> retVec;//ret code vector
+    protected:
+        bool JudgeIsElf(void *start){
+            UINT32 *bs = (UINT32 *)start;
+            return (*bs == 0x464c457f);
+        }
+    public:
+        ReadElf(const char *file_name);
+        void findRetCodeInElf();
+        bool isSharedObject()const {return isSharedObjectFile;}
+        vector<INST_INFO> getRetList()const{return retVec;}
+        string getFileName()const{return file_name;}
+        ADDR getElfMapStart()const{return reinterpret_cast<ADDR>(elf_map_start);}
+        ADDR getRegionMapStart(int x_region_index) const{
+            return x_region[x_region_index].map_start;}
+        ADDR getRegionMapEnd(int x_region_index) const{
+            return x_region[x_region_index].map_end;}
+        ADDR convertInstMapAddrToVirtAddr(ADDR inst_map_addr, int x_region_index){
+            return inst_map_addr - x_region[x_region_index].map_start + x_region[x_region_index].virtual_addr;}
+        ADDR convertInstVirtAddrToMapAddr(ADDR inst_virtual_addr, int x_region_index){
+            return inst_virtual_addr - x_region[x_region_index].virtual_addr + x_region[x_region_index].map_start;}
+};
+
+#endif

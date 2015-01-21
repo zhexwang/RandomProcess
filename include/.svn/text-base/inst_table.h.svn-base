@@ -1,0 +1,24 @@
+#ifndef _INST_TABLE_
+#define _INST_TABLE_
+
+#include "trie.h"
+
+enum INST_TYPE{
+
+
+};
+class InstInfo{
+    protected:
+        string typeName;
+
+
+};
+
+class InstTable{
+    protected:
+        vector<InstInfo> Table[];
+
+
+};
+
+#endif
