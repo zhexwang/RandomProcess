@@ -23,10 +23,12 @@
 #else
 #define FATAL(cond, ...) do{if(cond) {ERR("FATAL: %s:%-4d "__VA_ARGS__, __FILE__, __LINE__); abort();}}while(0)
 #define ASSERT(cond)       
+#define PERROR(cond, format)
 #define ASSERTM(cond, format, ...) 
 #define NOT_IMPLEMENTED(who)       
-
 #endif
+
+#define btoa(x) ((x)?"true":"false")
 
 
 #endif

@@ -2,14 +2,15 @@ SHELL := /bin/bash
 BIN := random
 
 BUILD_DIR := build
-SRC_DIR := main memory
+SRC_DIR := main memory code_segment codecache readelf function instruction
 DISASM_DIR := disasm
 
 DISASM_INCLUDE := -I./include -I./include/beaengine
 INCLUDE := -I./include 
 
 OPTIMIZE := -O0 -g
-CFLAGS := $(OPTIMIZE) -Wall 
+EXTRA_FLAGS := -D_DEBUG -D_GNU_SOURCE
+CFLAGS := $(OPTIMIZE) -Wall $(EXTRA_FLAGS)
 DISASM_CFLAGS := $(OPTIMIZE) -fPIC -Wall -pedantic -ansi -pipe -fno-common -fshort-enums -W -Wextra -Wconversion -Wno-long-long \
 	-Wshadow -Wpointer-arith -Wcast-qual -Wcast-align -Wwrite-strings
 
