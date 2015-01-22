@@ -5,6 +5,7 @@
 #include "utility.h"
 #include "code_segment.h"
 #include "function.h"
+#include "map_function.h"
 
 class ReadElf
 {
@@ -24,7 +25,7 @@ public:
 		UINT32 *bs = (UINT32 *)start;
 		return (*bs == 0x464c457f);
 	}
-	void scan_and_record_function(vector<Function*> & functionList);
+	void scan_and_record_function(MAP_FUNCTION *map_function, MAP_ORIGIN_FUNCTION *map_origin_function);
 };
 
 #endif

@@ -42,7 +42,7 @@ ReadElf::~ReadElf()
 	PERROR(ret==0, "munmap failed!");
 }
 
-void ReadElf::scan_and_record_function(vector<Function*> & functionList)
+void ReadElf::scan_and_record_function(MAP_FUNCTION *map_function, MAP_ORIGIN_FUNCTION *map_origin_function)
 {
 	Elf64_Ehdr *elf_header = (Elf64_Ehdr*)map_start;
 	Elf64_Shdr *SecHdr = (Elf64_Shdr *)((ADDR)map_start + elf_header->e_shoff);
@@ -80,8 +80,23 @@ void ReadElf::scan_and_record_function(vector<Function*> & functionList)
 				continue;
 			char *name = string_table + sym.st_name;
 			string string_name = name;
+			//create function
 			Function *function = new Function(_code_segment, string_name, function_start, function_size);
-			functionList.push_back(function);
+			//get function and origin function base
+			ADDR current_function_base = function->get_function_base();
+			ORIGIN_ADDR origin_function_base = function->get_origin_function_base();
+			//insert map_function
+			if(map_function->insert(make_pair(current_function_base, function)).second == false){
+				//key was present
+				delete function;
+				function = NULL;
+			}
+			//insert map_origin function
+			if(map_origin_function->insert(make_pair(origin_function_base, function)).second == false){
+				ASSERT(!function);
+			}else{
+				ASSERT(function);
+			}
 		}   
 	} 
 	//find function in dynsymt
@@ -96,7 +111,21 @@ void ReadElf::scan_and_record_function(vector<Function*> & functionList)
 			char *name =  dynstr_table + sym.st_name;
 			string string_name = name;
 			Function *function = new Function(_code_segment, string_name, function_start, function_size);
-			functionList.push_back(function);
+			//get function and origin function base
+			ADDR current_function_base = function->get_function_base();
+			ORIGIN_ADDR origin_function_base = function->get_origin_function_base();
+			//insert map_function
+			if(map_function->insert(make_pair(current_function_base, function)).second == false){
+				//key was present
+				delete function;
+				function = NULL;
+			}
+			//insert map_origin function
+			if(map_origin_function->insert(make_pair(origin_function_base, function)).second == false){
+				ASSERT(!function);
+			}else{
+				ASSERT(function);
+			}		
 		}   
 	}
 }

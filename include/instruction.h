@@ -11,9 +11,13 @@ private:
 	ORIGIN_ADDR _origin_instruction_addr;
 	ADDR _current_instruction_addr;
 	DISASM _disasm;
+	SIZE instruction_size;
+	BOOL is_already_disasm;
 public:
-	Instruction(ORIGIN_ADDR origin_addr, ADDR current_addr);
-	void disassemable();
+	Instruction(ORIGIN_ADDR origin_addr, ADDR current_addr, SIZE instruction_max_size);
+	~Instruction(){;}
+	SIZE disassemable();
+	void dump();
 };
 
 #endif
