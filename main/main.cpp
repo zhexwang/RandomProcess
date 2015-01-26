@@ -12,18 +12,8 @@ CodeCache *global_code_cache = NULL;
 CODE_SEG_MAP_ORIGIN_FUNCTION CSfunctionMapOriginList;
 CODE_SEG_MAP_FUNCTION CSfunctionMapList;
 
-int main(int argc, const char *argv[])
+void readelf_to_find_all_function()
 {
-	//1.judge illegal
-	if(argc<1){
-		ERR("Usage: ./%s logFile", argv[0]);
-		abort();
-	}
-	//2.read log file and create code_segment_vec
-	ReadLog log(argv[1]);
-	//3.init code cache
-	global_code_cache = init_code_cache();
-	//4.read elf to find function
 	for(vector<CodeSegment*>::iterator it = code_segment_vec.begin(); it<code_segment_vec.end(); it++){
 		if(!(*it)->is_code_cache){
 			//map origin
@@ -38,7 +28,11 @@ int main(int argc, const char *argv[])
 			delete read_elf;
 		}
 	}
-	//5.dump
+	return ;
+}
+
+void disasm_all_function()
+{
 	for(CODE_SEG_MAP_ORIGIN_FUNCTION_ITERATOR it = CSfunctionMapOriginList.begin(); it!=CSfunctionMapOriginList.end(); it++){
 		if(!it->first->isSO){
 			for(MAP_ORIGIN_FUNCTION_ITERATOR iter = it->second->begin(); iter!=it->second->end(); iter++){
@@ -47,6 +41,33 @@ int main(int argc, const char *argv[])
 			}
 		}
 	}
+	return ;
+}
 
+void split_function_into_basic_block()
+{
+
+}
+
+int main(int argc, const char *argv[])
+{
+	//1.judge illegal
+	if(argc!=3){
+		ERR("Usage: ./%s shareCodeLogFile indirectProfileLogFile\n", argv[0]);
+		abort();
+	}
+	//2.read share log file and create code_segment_vec
+	ReadLog log(argv[1], argv[2]);
+	//3.init log
+	log.init_share_log();
+	log.init_profile_log();//read indirect inst and target
+	//4.init code cache
+	global_code_cache = init_code_cache();
+	//5.read elf to find function
+	readelf_to_find_all_function();
+	//6.disasm
+	disasm_all_function();
+	//7.split basic block
+	split_function_into_basic_block();
 	return 0;
 }

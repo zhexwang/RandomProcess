@@ -13,10 +13,15 @@ private:
 	DISASM _disasm;
 	SIZE instruction_size;
 	BOOL is_already_disasm;
+	UINT8 *inst_encode;
 public:
 	Instruction(ORIGIN_ADDR origin_addr, ADDR current_addr, SIZE instruction_max_size);
 	~Instruction(){;}
 	SIZE disassemable();
+	DISASM &get_disasm()
+	{
+		return _disasm;
+	}
 	void dump();
 };
 

@@ -3,7 +3,7 @@
 
 Function::Function(CodeSegment *code_segment, string name, ORIGIN_ADDR origin_function_base, ORIGIN_SIZE origin_function_size)
 	:_code_segment(code_segment), _function_name(name), _origin_function_base(origin_function_base), _origin_function_size(origin_function_size)
-	, _random_function_base(0), _random_function_size(0), is_already_disasm(false)
+	, _random_function_base(0), _random_function_size(0), is_already_disasm(false), is_already_split_into_bb(false)
 {
 	_function_base = code_segment->convert_origin_process_addr_to_this(_origin_function_base);
 	_function_size = (SIZE)_origin_function_size;
@@ -24,9 +24,9 @@ void Function::disassemble()
 {
 	ORIGIN_ADDR origin_addr = _origin_function_base;
 	ADDR current_addr = _function_base;
-	SIZE security_size = _origin_function_size;
+	SIZE security_size = _origin_function_size+1;//To see one more byte
 
-	while(security_size>0){
+	while(security_size>1){
 		Instruction *instr = new Instruction(origin_addr, current_addr, security_size);
 		SIZE instr_size = instr->disassemable();
 		origin_addr += instr_size;
@@ -34,7 +34,7 @@ void Function::disassemble()
 		security_size -= instr_size;
 		_origin_function_instructions.push_back(instr);
 	}
-	ASSERT(security_size==0);
+	ASSERT(security_size==1);
 	is_already_disasm = true;
 }
 
@@ -46,4 +46,19 @@ void Function::point_to_random_function()
 void Function::random_function()
 {
 	NOT_IMPLEMENTED(wz);
+}
+
+void Function::split_into_basic_block()
+{
+	ASSERT(is_already_disasm);
+	//BasicBlock *entryBlock = new BasicBlock();
+	for(vector<Instruction*>::iterator iter = _origin_function_instructions.begin(); iter!=_origin_function_instructions.end(); iter++){
+		Instruction *curr_inst = *iter;
+		//_code_segment->
+		if((curr_inst->get_disasm().Instruction.Category&0xffff)==CONTROL_TRANSFER){
+			;
+		}
+		
+
+	}
 }

@@ -9,6 +9,8 @@
 #include <sys/types.h>
 #include <fcntl.h>			 /* For O_* constants */
 #include <string>
+#include <map>
+#include <vector>
 using namespace std;
 
 class CodeSegment
@@ -22,6 +24,9 @@ public:
 	BOOL is_code_cache;
 	BOOL isSO;
 	INT32 shm_fd;
+	//profile data
+	multimap<ORIGIN_ADDR, ORIGIN_ADDR> indirect_inst_map;
+	typedef multimap<ORIGIN_ADDR, ORIGIN_ADDR>::iterator INDIRECT_MAP_ITERATOR;
 public:
 	CodeSegment(ORIGIN_ADDR regionStart, SIZE regionSize, string codePath, string shmName, BOOL isCodeCache)
 		:code_start(regionStart), code_size(regionSize), file_path(codePath), shm_name(shmName),is_code_cache(isCodeCache)
@@ -62,6 +67,19 @@ public:
 		ADDR end = start + (SIZE)code_size;
 		ASSERT((addr>=start)&&(addr<=end));
 		return addr - start + code_start;
+	}
+	BOOL has_profile_data()
+	{
+		return !indirect_inst_map.empty();
+	}
+	vector<ORIGIN_ADDR> *find_target_by_inst_addr(ORIGIN_ADDR inst_addr)
+	{
+		vector<ORIGIN_ADDR> *ret = new vector<ORIGIN_ADDR>();
+		pair<INDIRECT_MAP_ITERATOR, INDIRECT_MAP_ITERATOR> range = indirect_inst_map.equal_range(inst_addr);
+		for(INDIRECT_MAP_ITERATOR iter = range.first; iter!=range.second; iter++){
+			ret->push_back(iter->second);
+		}
+		return ret;
 	}
 };
 
