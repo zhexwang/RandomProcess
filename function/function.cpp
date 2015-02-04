@@ -13,7 +13,7 @@ Function::~Function(){
 }
 void Function::dump_function_origin()
 {
-	PRINT("%s(0x%lx-0x%lx)\n", _function_name.c_str(), _origin_function_base, _origin_function_size+_origin_function_base);
+	INFO("[%s]%s(0x%lx-0x%lx)\n", _code_segment->file_path.c_str(),_function_name.c_str(), _origin_function_base, _origin_function_size+_origin_function_base);
 	if(is_already_disasm){
 		for(vector<Instruction*>::iterator iter = _origin_function_instructions.begin(); iter!=_origin_function_instructions.end(); iter++){
 			(*iter)->dump();
@@ -28,6 +28,7 @@ void Function::disassemble()
 
 	while(security_size>1){
 		Instruction *instr = new Instruction(origin_addr, current_addr, security_size);
+		_map_origin_addr_to_inst.insert(make_pair(origin_addr, instr));
 		SIZE instr_size = instr->disassemable();
 		origin_addr += instr_size;
 		current_addr += instr_size;
@@ -48,17 +49,181 @@ void Function::random_function()
 	NOT_IMPLEMENTED(wz);
 }
 
-void Function::split_into_basic_block()
+Instruction *Function::get_instruction_by_addr(ORIGIN_ADDR origin_addr)
 {
 	ASSERT(is_already_disasm);
+	map<ORIGIN_ADDR, Instruction*>::iterator iter = _map_origin_addr_to_inst.find(origin_addr);
+	if(iter==_map_origin_addr_to_inst.end())
+		return NULL;
+	else
+		return iter->second;
+}
+
+typedef struct item{
+	Instruction *inst;
+	Instruction *fallthroughInst;
+	vector<Instruction *> targetList;
+	BOOL isBBEntry;
+	BOOL isBBEnd;
+}Item;
+
+void Function::split_into_basic_block()
+{
+	dump_function_origin();
+	ASSERT(is_already_disasm);
+	SIZE inst_sum = _origin_function_instructions.size();
+	Item *array = new Item[inst_sum];
+	//init
+	for(SIZE k=0; k<inst_sum; k++){
+		array[k].isBBEntry = false;
+		array[k].isBBEnd = false;
+	}
+	map<Instruction *, INT32> inst_map_idx;
 	//BasicBlock *entryBlock = new BasicBlock();
+	//scan to find target and fallthrough
+	INT32 idx = 0;
 	for(vector<Instruction*>::iterator iter = _origin_function_instructions.begin(); iter!=_origin_function_instructions.end(); iter++){
 		Instruction *curr_inst = *iter;
-		//_code_segment->
-		if((curr_inst->get_disasm().Instruction.Category&0xffff)==CONTROL_TRANSFER){
-			;
+		array[idx].inst = curr_inst;
+		inst_map_idx.insert(make_pair(curr_inst, idx));
+		if(curr_inst->isConditionBranch()){
+			//INFO("%.8lx conditionBranch!\n", curr_inst->get_inst_origin_addr());
+			//add target inst
+			ORIGIN_ADDR target_addr = curr_inst->getBranchTargetOrigin();
+			Instruction *target_inst = get_instruction_by_addr(target_addr);
+			if(target_inst)
+				array[idx].targetList.push_back(target_inst);
+			else
+				ERR("%.8lx  find none target in condtionjmp!\n", curr_inst->get_inst_origin_addr());
+			array[idx].isBBEnd = true;
+			//add fallthrough inst
+			if(iter!=_origin_function_instructions.end()){
+				array[idx].fallthroughInst = *(iter+1);
+				array[idx+1].isBBEntry = true;
+			}else{
+				ERR("%.8lx  fallthrough inst out of function!\n", curr_inst->get_inst_origin_addr());
+				array[idx].fallthroughInst = NULL;
+			}
+		}else if(curr_inst->isDirectJmp()){
+			//INFO("%.8lx directJmp!\n", curr_inst->get_inst_origin_addr());
+			//add target
+			ORIGIN_ADDR target_addr = curr_inst->getBranchTargetOrigin();
+			Instruction *target_inst = get_instruction_by_addr(target_addr);
+			if(target_inst)
+				array[idx].targetList.push_back(target_inst);
+			else
+				ERR("%.8lx  target inst is empty in directjmp\n", curr_inst->get_inst_origin_addr());
+			array[idx].fallthroughInst = NULL;
+			array[idx].isBBEnd = true;
+			if(iter!=_origin_function_instructions.end()){
+				array[idx+1].isBBEntry = true;
+			}
+		}else if(curr_inst->isIndirectJmp()){
+			//INFO("%.8lx indirectJmp!\n", curr_inst->get_inst_origin_addr());
+			//add target
+			vector<ORIGIN_ADDR> *target_addr_list = _code_segment->find_target_by_inst_addr(curr_inst->get_inst_origin_addr());
+			for(vector<ORIGIN_ADDR>::iterator it = target_addr_list->begin(); it!=target_addr_list->end(); it++){
+				Instruction *target_inst = get_instruction_by_addr(*it);
+				if(target_inst)
+					array[idx].targetList.push_back(target_inst);
+				else
+					ERR("%.8lx  target inst is out of function!\n", curr_inst->get_inst_origin_addr());
+			}
+			if(array[idx].targetList.size()==0)
+				ERR("%.8lx  do not find target!\n", curr_inst->get_inst_origin_addr());
+			array[idx].fallthroughInst = NULL;
+			array[idx].isBBEnd = true;
+			if(iter!=_origin_function_instructions.end())
+				array[idx+1].isBBEntry = true;
+		}else if(curr_inst->isDirectCall()){
+			//INFO("%.8lx directCall!\n", curr_inst->get_inst_origin_addr());
+			//add target
+			ORIGIN_ADDR target_addr = curr_inst->getBranchTargetOrigin();
+			Instruction *target_inst = get_instruction_by_addr(target_addr);
+			ASSERT(!target_inst);
+			array[idx].isBBEnd = true;
+			//add fallthrough
+			if(iter!=_origin_function_instructions.end()){
+				array[idx].fallthroughInst = *(iter+1);
+				array[idx+1].isBBEntry = true;
+			}else
+				array[idx].fallthroughInst = NULL;
+		}else if (curr_inst->isIndirectCall()){
+			//INFO("%.8lx indirectCall!\n", curr_inst->get_inst_origin_addr());
+			array[idx].isBBEnd = true;
+			//add fallthrough
+			if(iter!=_origin_function_instructions.end()){
+				array[idx].fallthroughInst = *(iter+1);
+				array[idx+1].isBBEntry = true;
+			}else
+				array[idx].fallthroughInst = NULL;
+		}else if(curr_inst->isRet()){
+			//INFO("%.8lx ret!\n", curr_inst->get_inst_origin_addr());
+			array[idx].isBBEnd = true;
+			array[idx].fallthroughInst = NULL;
+			if(iter!=_origin_function_instructions.end())
+				array[idx+1].isBBEntry = true;
+		}else{
+			//INFO("%.8lx none!\n", curr_inst->get_inst_origin_addr());
+			array[idx].isBBEnd = false;
+			if(iter!=_origin_function_instructions.end())
+				array[idx].fallthroughInst = *(iter+1);
+			else
+				array[idx].fallthroughInst = NULL;
 		}
 		
-
+		idx++;
 	}
+	array[0].isBBEntry = true;
+	array[idx-1].isBBEnd = true;
+	//calculate the BB entry
+	for(idx = 0;idx<(INT32)inst_sum; idx++){
+		for(vector<Instruction*>::iterator it = array[idx].targetList.begin(); it!=array[idx].targetList.end(); it++){
+			INT32 targetIdx = inst_map_idx.find(*it)->second;
+			//ERR("%.8lx->%.8lx\n", array[idx].inst->get_inst_origin_addr(), array[targetIdx].inst->get_inst_origin_addr());
+			array[targetIdx].isBBEntry = true;
+			if(targetIdx!=0 && !array[targetIdx-1].isBBEnd){
+				array[targetIdx-1].isBBEnd = true;
+			}
+		}
+	}/*
+	for(SIZE i=0; i<inst_sum; i++){
+		INFO("%.8lx Entry:%d End: %d\n", array[i].inst->get_inst_origin_addr(), array[i].isBBEntry, array[i].isBBEnd);
+	}*/
+	ERR("==================\n");
+	//create BasicBlock and insert the instructions
+	BasicBlock *curr_bb = NULL;
+	Instruction *first_inst_in_bb = NULL;
+	map<Instruction *, BasicBlock *> inst_bb_map;
+	for(SIZE i=0; i<inst_sum; i++){
+		Item *item = array+i;
+		if(item->isBBEntry){
+			curr_bb = new BasicBlock();
+			bb_list.push_back(curr_bb);
+			first_inst_in_bb = item->inst;
+		}
+		
+		curr_bb->insert_instruction(item->inst);
+		
+		if(item->isBBEnd)
+			inst_bb_map.insert(make_pair(first_inst_in_bb, curr_bb));
+	}
+	//add prev, target, fallthrough
+	for(vector<BasicBlock *>::iterator ite = bb_list.begin(); ite!=bb_list.end(); ite++){
+		BasicBlock *curr_bb = *ite;
+		Item *item = array + inst_map_idx.find(curr_bb->get_last_instruction())->second;
+		ASSERT(item->isBBEnd);
+		if(item->fallthroughInst){
+			BasicBlock *fallthroughBB = inst_bb_map.find(item->fallthroughInst)->second;
+			curr_bb->add_fallthrough_bb(fallthroughBB);
+			fallthroughBB->add_prev_bb(curr_bb);
+		}
+		for(vector<Instruction*>::iterator it = item->targetList.begin(); it!=item->targetList.end(); it++){
+			BasicBlock *targetBB = inst_bb_map.find(*it)->second;
+			curr_bb->add_target_bb(targetBB);
+			targetBB->add_prev_bb(curr_bb);
+		}
+	}
+	ERR("==================\n");
+	
 }

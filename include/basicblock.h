@@ -13,10 +13,25 @@ private:
 	BasicBlock *fallthrough_bb;
 	vector<BasicBlock *> target_bb_vec;
 public:
-	BasicBlock();
+	BasicBlock():fallthrough_bb(NULL)
+	{
+		;		
+	}
+	virtual ~BasicBlock()
+	{
+		;
+	}
 	void insert_instruction(Instruction *inst)
 	{
 		instruction_vec.push_back(inst);
+	}
+	Instruction *get_first_instruction()
+	{
+		return instruction_vec.front();
+	}
+	Instruction *get_last_instruction()
+	{
+		return instruction_vec.back();
 	}
 	void add_prev_bb(BasicBlock *prev_bb)
 	{
@@ -30,7 +45,7 @@ public:
 	{
 		fallthrough_bb = fall_bb;
 	}
-	~BasicBlock();
+	
 };
 
 

@@ -7,6 +7,7 @@
 #include "Basicblock.h"
 #include "code_segment.h"
 #include <vector>
+#include <map>
 using namespace std;
 
 
@@ -27,6 +28,7 @@ private:
 	//instruction list
 	vector<Instruction*> _origin_function_instructions;
 	vector<Instruction*> _random_function_instructions;
+	map<ORIGIN_ADDR, Instruction*> _map_origin_addr_to_inst;
 	BOOL is_already_disasm;
 	BOOL is_already_split_into_bb;
 	vector<BasicBlock*> bb_list;
@@ -39,6 +41,7 @@ public:
 	void point_to_random_function();
 	void disassemble();
 	void split_into_basic_block();
+	Instruction *get_instruction_by_addr(ORIGIN_ADDR origin_addr);
 	virtual void random_function();
 };
 
