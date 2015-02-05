@@ -79,7 +79,7 @@ void Instruction::dump()
 		if(inst_type==DIRECT_JMP_TYPE || inst_type==CND_BRANCH_TYPE || inst_type==DIRECT_CALL_TYPE)
 			PRINT(" (%lx)", getBranchTargetOrigin());
 	}else
-		PRINT("none!");
+		PRINT("Do not disasm!");
 	PRINT("\n");
 }
 

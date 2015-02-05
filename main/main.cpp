@@ -46,8 +46,10 @@ void split_function_into_basic_block()
 {
 	for(CODE_SEG_MAP_ORIGIN_FUNCTION_ITERATOR it = CSfunctionMapOriginList.begin(); it!=CSfunctionMapOriginList.end(); it++){
 		if(!it->first->isSO){
-			for(MAP_ORIGIN_FUNCTION_ITERATOR iter = it->second->begin(); iter!=it->second->end(); iter++)
+			for(MAP_ORIGIN_FUNCTION_ITERATOR iter = it->second->begin(); iter!=it->second->end(); iter++){
 				iter->second->split_into_basic_block();
+				//iter->second->dump_bb_origin();
+			}
 		}
 	}
 	return ;

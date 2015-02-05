@@ -13,12 +13,27 @@ Function::~Function(){
 }
 void Function::dump_function_origin()
 {
-	INFO("[%s]%s(0x%lx-0x%lx)\n", _code_segment->file_path.c_str(),_function_name.c_str(), _origin_function_base, _origin_function_size+_origin_function_base);
+	PRINT("[0x%lx-0x%lx]",  _origin_function_base, _origin_function_size+_origin_function_base);
+	INFO("%s",_function_name.c_str());
+	PRINT("(Path:%s)\n", _code_segment->file_path.c_str());
 	if(is_already_disasm){
 		for(vector<Instruction*>::iterator iter = _origin_function_instructions.begin(); iter!=_origin_function_instructions.end(); iter++){
 			(*iter)->dump();
 		}
-	}
+	}else
+		ERR("Do not disasm!\n");
+}
+void Function::dump_bb_origin()
+{
+	PRINT("[0x%lx-0x%lx]",  _origin_function_base, _origin_function_size+_origin_function_base);
+	INFO("%s",_function_name.c_str());
+	PRINT("(Path:%s)\n", _code_segment->file_path.c_str());
+	if(is_already_split_into_bb){
+		for(vector<BasicBlock *>::iterator ite = bb_list.begin(); ite!=bb_list.end(); ite++){
+			(*ite)->dump();
+		}
+	}else
+		ERR("Do not split into BB!\n");
 }
 void Function::disassemble()
 {
@@ -69,7 +84,6 @@ typedef struct item{
 
 void Function::split_into_basic_block()
 {
-	dump_function_origin();
 	ASSERT(is_already_disasm);
 	SIZE inst_sum = _origin_function_instructions.size();
 	Item *array = new Item[inst_sum];
@@ -97,7 +111,7 @@ void Function::split_into_basic_block()
 				ERR("%.8lx  find none target in condtionjmp!\n", curr_inst->get_inst_origin_addr());
 			array[idx].isBBEnd = true;
 			//add fallthrough inst
-			if(iter!=_origin_function_instructions.end()){
+			if((iter+1)!=_origin_function_instructions.end()){
 				array[idx].fallthroughInst = *(iter+1);
 				array[idx+1].isBBEntry = true;
 			}else{
@@ -115,25 +129,25 @@ void Function::split_into_basic_block()
 				ERR("%.8lx  target inst is empty in directjmp\n", curr_inst->get_inst_origin_addr());
 			array[idx].fallthroughInst = NULL;
 			array[idx].isBBEnd = true;
-			if(iter!=_origin_function_instructions.end()){
+			if((iter+1)!=_origin_function_instructions.end()){
 				array[idx+1].isBBEntry = true;
 			}
 		}else if(curr_inst->isIndirectJmp()){
-			//INFO("%.8lx indirectJmp!\n", curr_inst->get_inst_origin_addr());
+			//INFO("%.8lx indirectJmp!\n", curr_inst->get_inst_origin_addr() - _code_segment->code_start);
 			//add target
 			vector<ORIGIN_ADDR> *target_addr_list = _code_segment->find_target_by_inst_addr(curr_inst->get_inst_origin_addr());
 			for(vector<ORIGIN_ADDR>::iterator it = target_addr_list->begin(); it!=target_addr_list->end(); it++){
 				Instruction *target_inst = get_instruction_by_addr(*it);
-				if(target_inst)
+				if(target_inst){
 					array[idx].targetList.push_back(target_inst);
-				else
+				}else
 					ERR("%.8lx  target inst is out of function!\n", curr_inst->get_inst_origin_addr());
 			}
 			if(array[idx].targetList.size()==0)
 				ERR("%.8lx  do not find target!\n", curr_inst->get_inst_origin_addr());
 			array[idx].fallthroughInst = NULL;
 			array[idx].isBBEnd = true;
-			if(iter!=_origin_function_instructions.end())
+			if((iter+1)!=_origin_function_instructions.end())
 				array[idx+1].isBBEntry = true;
 		}else if(curr_inst->isDirectCall()){
 			//INFO("%.8lx directCall!\n", curr_inst->get_inst_origin_addr());
@@ -143,7 +157,7 @@ void Function::split_into_basic_block()
 			ASSERT(!target_inst);
 			array[idx].isBBEnd = true;
 			//add fallthrough
-			if(iter!=_origin_function_instructions.end()){
+			if((iter+1)!=_origin_function_instructions.end()){
 				array[idx].fallthroughInst = *(iter+1);
 				array[idx+1].isBBEntry = true;
 			}else
@@ -152,7 +166,7 @@ void Function::split_into_basic_block()
 			//INFO("%.8lx indirectCall!\n", curr_inst->get_inst_origin_addr());
 			array[idx].isBBEnd = true;
 			//add fallthrough
-			if(iter!=_origin_function_instructions.end()){
+			if((iter+1)!=_origin_function_instructions.end()){
 				array[idx].fallthroughInst = *(iter+1);
 				array[idx+1].isBBEntry = true;
 			}else
@@ -161,21 +175,24 @@ void Function::split_into_basic_block()
 			//INFO("%.8lx ret!\n", curr_inst->get_inst_origin_addr());
 			array[idx].isBBEnd = true;
 			array[idx].fallthroughInst = NULL;
-			if(iter!=_origin_function_instructions.end())
+			if((iter+1)!=_origin_function_instructions.end())
 				array[idx+1].isBBEntry = true;
 		}else{
 			//INFO("%.8lx none!\n", curr_inst->get_inst_origin_addr());
 			array[idx].isBBEnd = false;
-			if(iter!=_origin_function_instructions.end())
+			if((iter+1)!=_origin_function_instructions.end())
 				array[idx].fallthroughInst = *(iter+1);
 			else
 				array[idx].fallthroughInst = NULL;
 		}
 		
 		idx++;
+
 	}
 	array[0].isBBEntry = true;
 	array[idx-1].isBBEnd = true;
+
+	
 	//calculate the BB entry
 	for(idx = 0;idx<(INT32)inst_sum; idx++){
 		for(vector<Instruction*>::iterator it = array[idx].targetList.begin(); it!=array[idx].targetList.end(); it++){
@@ -190,7 +207,7 @@ void Function::split_into_basic_block()
 	for(SIZE i=0; i<inst_sum; i++){
 		INFO("%.8lx Entry:%d End: %d\n", array[i].inst->get_inst_origin_addr(), array[i].isBBEntry, array[i].isBBEnd);
 	}*/
-	ERR("==================\n");
+	
 	//create BasicBlock and insert the instructions
 	BasicBlock *curr_bb = NULL;
 	Instruction *first_inst_in_bb = NULL;
@@ -208,6 +225,7 @@ void Function::split_into_basic_block()
 		if(item->isBBEnd)
 			inst_bb_map.insert(make_pair(first_inst_in_bb, curr_bb));
 	}
+	
 	//add prev, target, fallthrough
 	for(vector<BasicBlock *>::iterator ite = bb_list.begin(); ite!=bb_list.end(); ite++){
 		BasicBlock *curr_bb = *ite;
@@ -224,6 +242,5 @@ void Function::split_into_basic_block()
 			targetBB->add_prev_bb(curr_bb);
 		}
 	}
-	ERR("==================\n");
-	
+	is_already_split_into_bb = true;
 }

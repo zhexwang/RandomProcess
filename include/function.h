@@ -36,6 +36,7 @@ public:
 	Function(CodeSegment *code_segment, string name, ORIGIN_ADDR origin_function_base, ORIGIN_SIZE origin_function_size);
 	virtual ~Function();
 	void dump_function_origin();
+	void dump_bb_origin();
 	ADDR get_function_base(){return _function_base;}
 	ORIGIN_ADDR get_origin_function_base(){return _origin_function_base;}
 	void point_to_random_function();

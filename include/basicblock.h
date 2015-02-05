@@ -27,10 +27,12 @@ public:
 	}
 	Instruction *get_first_instruction()
 	{
+		ASSERT(!instruction_vec.empty());
 		return instruction_vec.front();
 	}
 	Instruction *get_last_instruction()
 	{
+		ASSERT(!instruction_vec.empty());
 		return instruction_vec.back();
 	}
 	void add_prev_bb(BasicBlock *prev_bb)
@@ -45,7 +47,8 @@ public:
 	{
 		fallthrough_bb = fall_bb;
 	}
-	
+	SIZE copy_instructions(ADDR curr_target_addr, ORIGIN_ADDR origin_target_addr);
+	void dump();
 };
 
 
