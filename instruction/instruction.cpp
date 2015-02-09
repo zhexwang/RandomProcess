@@ -6,10 +6,34 @@ const char * Instruction::type_to_string[] = {"EMPTY","NONE_TYPE", "CND_BRANCH_T
 	   "INDIRECT_CALL_TYPE","INDIRECT_JMP_TYPE","RET_TYPE"};
 
 Instruction::Instruction(ORIGIN_ADDR origin_addr, ADDR current_addr, SIZE instruction_max_size)
-	:inst_type(Instruction::EMPTY), _origin_instruction_addr(origin_addr), _current_instruction_addr(current_addr), is_already_disasm(false)
-	, security_size(instruction_max_size)
+	:inst_type(Instruction::EMPTY), _origin_instruction_addr(origin_addr), _current_instruction_addr(current_addr)
+	, is_already_disasm(false), security_size(instruction_max_size), _curr_copy_addr(0)
+	, _origin_copy_addr(0), _inst_copy_size(0)
 {
 	;
+}
+
+SIZE Instruction::copy_instruction(CODE_CACHE_ADDR curr_copy_addr, ORIGIN_ADDR origin_copy_addr)
+{
+	ASSERT(is_already_disasm);
+	_curr_copy_addr = curr_copy_addr;
+	_origin_copy_addr = origin_copy_addr;
+	
+	if(_dInst.flags&FLAG_RIP_RELATIVE){
+		ERR("is PC relative!\n");
+	}else if(isDirectCall()){
+		ERR("is direct call!\n");
+	}else if (isDirectJmp()){
+		ERR("is direct jmp!\n");
+	}else if (isConditionBranch()){
+		ERR("is condtion branch!\n");
+	}else{//the instruction can be copy directly
+		get_inst_code((UINT8 *)curr_copy_addr, _dInst.size);
+		_inst_copy_size = _dInst.size;
+		return _dInst.size;
+	}
+	_inst_copy_size = 0;
+	return 0;
 }
 
 SIZE Instruction::disassemable()
@@ -28,14 +52,14 @@ SIZE Instruction::disassemable()
 	//get string
 	distorm_format(&ci, &_dInst, &_decodedInst);
 	
-	is_already_disasm = true;
 	init_instruction_type();
+	is_already_disasm = true;
+	
 	return _dInst.size;
 }
 
 void Instruction::init_instruction_type()
 {
-	ASSERT(is_already_disasm);
 	switch(META_GET_FC(_dInst.meta)){
 		case FC_NONE: 
 		case FC_SYS:

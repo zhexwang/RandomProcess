@@ -3,7 +3,7 @@
 
 Function::Function(CodeSegment *code_segment, string name, ORIGIN_ADDR origin_function_base, ORIGIN_SIZE origin_function_size)
 	:_code_segment(code_segment), _function_name(name), _origin_function_base(origin_function_base), _origin_function_size(origin_function_size)
-	, _random_function_base(0), _random_function_size(0), is_already_disasm(false), is_already_split_into_bb(false)
+	, _random_cc_start(0), _random_cc_origin_start(0), _random_cc_size(0), is_already_disasm(false), is_already_split_into_bb(false)
 {
 	_function_base = code_segment->convert_origin_process_addr_to_this(_origin_function_base);
 	_function_size = (SIZE)_origin_function_size;
@@ -59,9 +59,21 @@ void Function::point_to_random_function()
 	NOT_IMPLEMENTED(wz);
 }
 
-void Function::random_function()
+SIZE Function::random_function(CODE_CACHE_ADDR cc_curr_addr, ORIGIN_ADDR cc_origin_addr)
 {
-	NOT_IMPLEMENTED(wz);
+	ASSERT(is_already_split_into_bb);
+
+	SIZE bb_copy_size = 0;
+	_random_cc_start = cc_curr_addr;
+	_random_cc_origin_start = cc_origin_addr;
+	_random_cc_size = 0;
+	for(vector<BasicBlock *>::iterator ite = bb_list.begin(); ite!=bb_list.end(); ite++){
+		cc_curr_addr += bb_copy_size;
+		cc_origin_addr += bb_copy_size;
+		bb_copy_size = (*ite)->copy_instructions(cc_curr_addr, cc_origin_addr);
+		_random_cc_size += bb_copy_size;
+	}
+	return _random_cc_size;
 }
 
 Instruction *Function::get_instruction_by_addr(ORIGIN_ADDR origin_addr)

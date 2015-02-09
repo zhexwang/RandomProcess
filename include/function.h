@@ -23,8 +23,9 @@ private:
 	ADDR _function_base;
 	SIZE _function_size;
 	//random function in code_cache
-	CODE_CACHE_ADDR _random_function_base;
-	CODE_CACHE_SIZE _random_function_size;
+	CODE_CACHE_ADDR _random_cc_start;
+	ORIGIN_ADDR _random_cc_origin_start;
+	CODE_CACHE_SIZE _random_cc_size;
 	//instruction list
 	vector<Instruction*> _origin_function_instructions;
 	vector<Instruction*> _random_function_instructions;
@@ -43,7 +44,7 @@ public:
 	void disassemble();
 	void split_into_basic_block();
 	Instruction *get_instruction_by_addr(ORIGIN_ADDR origin_addr);
-	virtual void random_function();
+	SIZE random_function(CODE_CACHE_ADDR cc_curr_addr, ORIGIN_ADDR cc_origin_addr);
 };
 
 #endif

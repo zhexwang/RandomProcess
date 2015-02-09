@@ -27,13 +27,34 @@ private:
 	_DecodedInst _decodedInst;
 	BOOL is_already_disasm;
 	SIZE security_size;
+	CODE_CACHE_ADDR _curr_copy_addr;
+	ORIGIN_ADDR _origin_copy_addr;
+	SIZE _inst_copy_size;
 public:
 	Instruction(ORIGIN_ADDR origin_addr, ADDR current_addr, SIZE instruction_max_size);
 	~Instruction(){;}
-	const char *get_inst_code()
+	UINT8 char_to_encode(char c)
 	{
-		ASSERT(is_already_disasm);
-		return  (const char *)_decodedInst.instructionHex.p;
+		if((c>='0')&&(c<='9')){
+			return c-'0'+0x00;
+		}else if((c>='a')&&(c<='f'))
+			return c-'a'+0x0a;
+		else{
+			ASSERT(0);
+			return 0;
+		}
+	}
+	void get_inst_code(UINT8 *encode, SIZE size)
+	{
+		ASSERT(is_already_disasm && size==_dInst.size);
+		UINT32 idx = 0;
+		while(_decodedInst.instructionHex.p[idx]!='\0'){
+			ASSERT(_decodedInst.instructionHex.p[idx+1]!='\0');
+			encode[idx/2] = char_to_encode(_decodedInst.instructionHex.p[idx])*16+char_to_encode(_decodedInst.instructionHex.p[idx+1]);
+			idx+=2;
+		}
+		ASSERT(idx/2==size);
+		return  ;
 	}
 	SIZE get_inst_size()
 	{
@@ -106,6 +127,7 @@ public:
 		return _current_instruction_addr + _dInst.size;
 	}
 	SIZE disassemable();
+	SIZE copy_instruction(CODE_CACHE_ADDR curr_copy_addr, ORIGIN_ADDR origin_copy_addr);
 	void init_instruction_type();
 	void dump();
 };

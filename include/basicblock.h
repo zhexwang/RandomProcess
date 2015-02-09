@@ -12,8 +12,11 @@ private:
 	vector<BasicBlock *> prev_bb_vec;
 	BasicBlock *fallthrough_bb;
 	vector<BasicBlock *> target_bb_vec;
+	CODE_CACHE_ADDR _curr_copy_addr;
+	ORIGIN_ADDR _origin_copy_addr;
+	SIZE _generate_copy_size;
 public:
-	BasicBlock():fallthrough_bb(NULL)
+	BasicBlock():fallthrough_bb(NULL), _curr_copy_addr(0), _origin_copy_addr(0), _generate_copy_size(0)
 	{
 		;		
 	}
@@ -47,7 +50,7 @@ public:
 	{
 		fallthrough_bb = fall_bb;
 	}
-	SIZE copy_instructions(ADDR curr_target_addr, ORIGIN_ADDR origin_target_addr);
+	SIZE copy_instructions(CODE_CACHE_ADDR curr_target_addr, ORIGIN_ADDR origin_target_addr);
 	void dump();
 };
 

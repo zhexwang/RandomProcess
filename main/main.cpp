@@ -12,7 +12,7 @@ CodeCache *global_code_cache = NULL;
 CODE_SEG_MAP_ORIGIN_FUNCTION CSfunctionMapOriginList;
 CODE_SEG_MAP_FUNCTION CSfunctionMapList;
 
-void readelf_to_find_all_function()
+void readelf_to_find_all_functions()
 {
 	for(vector<CodeSegment*>::iterator it = code_segment_vec.begin(); it<code_segment_vec.end(); it++){
 		if(!(*it)->is_code_cache){
@@ -31,7 +31,7 @@ void readelf_to_find_all_function()
 	return ;
 }
 
-void disasm_all_function()
+void disasm_all_functions()
 {
 	for(CODE_SEG_MAP_ORIGIN_FUNCTION_ITERATOR it = CSfunctionMapOriginList.begin(); it!=CSfunctionMapOriginList.end(); it++){
 		for(MAP_ORIGIN_FUNCTION_ITERATOR iter = it->second->begin(); iter!=it->second->end(); iter++){
@@ -55,6 +55,23 @@ void split_function_into_basic_block()
 	return ;
 }
 
+void random_all_functions()
+{
+	for(CODE_SEG_MAP_ORIGIN_FUNCTION_ITERATOR it = CSfunctionMapOriginList.begin(); it!=CSfunctionMapOriginList.end(); it++){
+		if(!it->first->isSO){
+			for(MAP_ORIGIN_FUNCTION_ITERATOR iter = it->second->begin(); iter!=it->second->end(); iter++){
+				CODE_CACHE_ADDR curr_cc_ptr = 0;
+				ORIGIN_ADDR origin_cc_ptr = 0;
+				global_code_cache->getCCCurrent(curr_cc_ptr, origin_cc_ptr);
+				SIZE size = iter->second->random_function(curr_cc_ptr, origin_cc_ptr);
+				global_code_cache->updateCC(size);
+				//global_code_cache->disassemble(curr_cc_ptr, curr_cc_ptr+size);
+			}
+		}
+	}
+	return ;
+}
+
 int main(int argc, const char *argv[])
 {
 	//1.judge illegal
@@ -70,10 +87,12 @@ int main(int argc, const char *argv[])
 	//4.init code cache
 	global_code_cache = init_code_cache();
 	//5.read elf to find function
-	readelf_to_find_all_function();
+	readelf_to_find_all_functions();
 	//6.disasm
-	disasm_all_function();
+	disasm_all_functions();
 	//7.split basic block
 	split_function_into_basic_block();
+	//8.random
+	random_all_functions();
 	return 0;
 }
