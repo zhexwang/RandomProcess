@@ -14,6 +14,15 @@ SIZE BasicBlock::copy_instructions(ADDR curr_target_addr, ORIGIN_ADDR origin_tar
 	return _generate_copy_size;
 }
 
+BB_INS_ITER BasicBlock::find_first_least_size_instruction(SIZE least_size)
+{
+	for(vector<Instruction*>::iterator iter = instruction_vec.begin(); iter!=instruction_vec.end(); iter++){
+		if((*iter)->get_inst_size()>=least_size)
+			return iter;
+	}
+	return instruction_vec.end();
+}
+
 void BasicBlock::dump()
 {
 	ASSERT(!instruction_vec.empty());

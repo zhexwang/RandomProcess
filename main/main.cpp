@@ -65,7 +65,11 @@ void random_all_functions()
 				global_code_cache->getCCCurrent(curr_cc_ptr, origin_cc_ptr);
 				SIZE size = iter->second->random_function(curr_cc_ptr, origin_cc_ptr);
 				global_code_cache->updateCC(size);
-				//global_code_cache->disassemble(curr_cc_ptr, curr_cc_ptr+size);
+				
+				iter->second->dump_function_origin();
+				iter->second->dump_bb_origin();
+				/*global_code_cache->disassemble(curr_cc_ptr, curr_cc_ptr+size);*/
+				iter->second->analyse_random_bb();
 			}
 		}
 	}

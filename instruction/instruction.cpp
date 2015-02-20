@@ -1,4 +1,5 @@
 #include "instruction.h"
+#include "inst_macro.h"
 #include <string.h>
 
 
@@ -13,6 +14,25 @@ Instruction::Instruction(ORIGIN_ADDR origin_addr, ADDR current_addr, SIZE instru
 	;
 }
 
+SIZE Instruction::random_call_inst_handle()
+{
+	ASSERT(isCall()&&(_curr_copy_addr!=0)&&(_origin_copy_addr!=0));
+	//jmp to the call inst, the call inst will not be copy
+	//if address gap is within -0x7fffffff ~ 0x7fffffff, use relative jump
+	ORIGIN_ADDR code_start = _curr_copy_addr;
+	INT64 offset = _origin_instruction_addr - _origin_copy_addr - 0x5;
+	if((offset > 0 ? offset : -offset) < 0x7fffffff){
+		JMP_REL32(offset, code_start);
+	}else{
+		INT32 high32 = _origin_instruction_addr>>32;
+		INT32 low32 = _origin_instruction_addr;
+		PUSH_IMM32(low32, code_start);
+		MOV_IMM32_mRSPHIGH(high32, code_start);
+		RET(code_start);
+	}
+	return code_start - _curr_copy_addr;
+}
+
 SIZE Instruction::copy_instruction(CODE_CACHE_ADDR curr_copy_addr, ORIGIN_ADDR origin_copy_addr)
 {
 	ASSERT(is_already_disasm);
@@ -21,19 +41,21 @@ SIZE Instruction::copy_instruction(CODE_CACHE_ADDR curr_copy_addr, ORIGIN_ADDR o
 	
 	if(_dInst.flags&FLAG_RIP_RELATIVE){
 		ERR("is PC relative!\n");
-	}else if(isDirectCall()){
-		ERR("is direct call!\n");
+	}else if(isCall()){
+		_inst_copy_size = random_call_inst_handle();
 	}else if (isDirectJmp()){
 		ERR("is direct jmp!\n");
+	}else if (isIndirectJmp()){
+		ERR("is indirect jmp!\n");
 	}else if (isConditionBranch()){
 		ERR("is condtion branch!\n");
+	
 	}else{//the instruction can be copy directly
 		get_inst_code((UINT8 *)curr_copy_addr, _dInst.size);
 		_inst_copy_size = _dInst.size;
-		return _dInst.size;
 	}
-	_inst_copy_size = 0;
-	return 0;
+
+	return _inst_copy_size;
 }
 
 SIZE Instruction::disassemable()
@@ -42,13 +64,13 @@ SIZE Instruction::disassemable()
 	_CodeInfo ci;
 	ci.code = (const uint8_t*)_current_instruction_addr;
 	ci.codeLen = security_size;
-	ci.codeOffset = 0;
+	ci.codeOffset = _origin_instruction_addr;
 	ci.dt = Decode64Bits;
 	ci.features = DF_NONE;
 	//decompose the instruction
 	UINT32 dinstcount = 0;
 	distorm_decompose(&ci, &_dInst, 1, &dinstcount);
-	ASSERT(dinstcount==1);
+	ASSERT(dinstcount==1 && _dInst.addr==_origin_instruction_addr);
 	//get string
 	distorm_format(&ci, &_dInst, &_decodedInst);
 	
@@ -98,10 +120,8 @@ void Instruction::init_instruction_type()
 void Instruction::dump()
 {
 	if(is_already_disasm){
-		PRINT("%12lx (%02d) %-24s  %s%s%s", _origin_instruction_addr, _decodedInst.size, _decodedInst.instructionHex.p,\
+		PRINT("%12lx (%02d) %-24s  %s%s%s", _decodedInst.offset, _decodedInst.size, _decodedInst.instructionHex.p,\
 			(char*)_decodedInst.mnemonic.p, _decodedInst.operands.length != 0 ? " " : "", (char*)_decodedInst.operands.p);
-		if(inst_type==DIRECT_JMP_TYPE || inst_type==CND_BRANCH_TYPE || inst_type==DIRECT_CALL_TYPE)
-			PRINT(" (%lx)", getBranchTargetOrigin());
 	}else
 		PRINT("Do not disasm!");
 	PRINT("\n");

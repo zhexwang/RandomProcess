@@ -71,6 +71,11 @@ public:
 	{
 		return _origin_instruction_addr;
 	}
+	BOOL isCall()
+	{
+		ASSERT(is_already_disasm);
+		return (inst_type==INDIRECT_CALL_TYPE)||(inst_type==DIRECT_CALL_TYPE);
+	}
 	BOOL isIndirectCall()
 	{
 		ASSERT(is_already_disasm);
@@ -114,7 +119,7 @@ public:
 	ORIGIN_ADDR getBranchTargetOrigin()
 	{
 		ASSERT(is_already_disasm && (inst_type==DIRECT_JMP_TYPE || inst_type==CND_BRANCH_TYPE || inst_type==DIRECT_CALL_TYPE));
-		return INSTRUCTION_GET_TARGET(&_dInst) + _origin_instruction_addr;
+		return INSTRUCTION_GET_TARGET(&_dInst);
 	}
 	ORIGIN_ADDR getBranchFallthroughOrigin()
 	{
@@ -128,8 +133,10 @@ public:
 	}
 	SIZE disassemable();
 	SIZE copy_instruction(CODE_CACHE_ADDR curr_copy_addr, ORIGIN_ADDR origin_copy_addr);
-	void init_instruction_type();
 	void dump();
+private:
+	SIZE random_call_inst_handle();
+	void init_instruction_type();
 };
 
 #endif

@@ -254,5 +254,67 @@ void Function::split_into_basic_block()
 			targetBB->add_prev_bb(curr_bb);
 		}
 	}
+	delete [] array;
 	is_already_split_into_bb = true;
+}
+
+typedef enum{
+	EMPTY_RANDOM = 0,
+	FALSE_RANDOM,
+	TRUE_RANDOM,
+	UNKNOWN_RANDOM,
+	SUM_RANDOM,
+}ELEMENT_TYPE;
+void Function::analyse_random_bb()
+{
+	// 1.initialize the bb map idx;
+	 INT32 bb_num = bb_list.size();
+	 map<BasicBlock*, INT32> bb_list_map_idx;
+	 for(INT32 idx=0; idx<bb_num; idx++)
+		bb_list_map_idx.insert(make_pair(bb_list[idx], idx));
+	 // 2.initialize the matrix
+	 ELEMENT_TYPE **random_matrix = new ELEMENT_TYPE*[bb_num];
+	 for(INT32 row=0; row<bb_num; row++){
+		random_matrix[row] = new ELEMENT_TYPE[bb_num];
+		// 2.1 give a initialized num
+		for(INT32 column=0; column<bb_num; column++)
+			random_matrix[row][column] = EMPTY_RANDOM;
+		// 2.2
+		BasicBlock *src_bb = bb_list[row];
+		BOOL is_call_bb = src_bb->is_call_bb();
+		if(is_call_bb){
+			ASSERT(!(src_bb->is_fallthrough_empty()) && src_bb->is_target_empty());
+			INT32 dest_bb_idx = bb_list_map_idx.find(src_bb->get_fallthrough_bb())->second;
+			random_matrix[row][dest_bb_idx] = FALSE_RANDOM;
+		}else{
+			ELEMENT_TYPE succ_bb_type;
+			if(src_bb->find_first_least_size_instruction(5) == src_bb->end())
+				succ_bb_type = UNKNOWN_RANDOM;
+			else
+				succ_bb_type = TRUE_RANDOM;
+			//set target bb's matrix type
+			for(BB_ITER iter = src_bb->target_begin(); iter!=src_bb->target_end(); iter++){
+				INT32 dest_succ_idx = bb_list_map_idx.find(*iter)->second;
+				random_matrix[row][dest_succ_idx] = succ_bb_type;
+			}
+			//set fallthrough 
+			if(src_bb->get_fallthrough_bb()){
+				INT32 dest_succ_idx = bb_list_map_idx.find(src_bb->get_fallthrough_bb())->second;
+				random_matrix[row][dest_succ_idx] = succ_bb_type;
+			}
+		}
+	 }
+
+	 for(INT32 row=0; row<bb_num; row++){
+		for(INT32 column=0; column<bb_num; column++){
+			switch(random_matrix[row][column]){
+				case EMPTY_RANDOM: PRINT("E  "); break;
+				case FALSE_RANDOM: PRINT("F  "); break;
+				case TRUE_RANDOM: PRINT("T  "); break;
+				case UNKNOWN_RANDOM: PRINT("U  "); break;
+				default: ASSERT(0);
+			}
+		}
+		PRINT("\n");
+	 }
 }
