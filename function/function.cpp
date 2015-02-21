@@ -263,58 +263,143 @@ typedef enum{
 	FALSE_RANDOM,
 	TRUE_RANDOM,
 	UNKNOWN_RANDOM,
+	NONE_RESULT,
 	SUM_RANDOM,
 }ELEMENT_TYPE;
+
+void dump_random_matrix(ELEMENT_TYPE **random_matrix, INT32 size)
+{
+	for(INT32 column=0; column<size; column++){
+		if(column==0)
+			INFO("   ");
+		INFO("%3d ", column);
+	}
+	INFO("\n");
+	for(INT32 row=0; row<size; row++){
+	 	INFO("%3d  ", row);
+		for(INT32 column=0; column<size; column++){
+			switch(random_matrix[row][column]){
+				case EMPTY_RANDOM: PRINT("E"); break;
+				case FALSE_RANDOM: PRINT(COLOR_RED"F"COLOR_END); break;
+				case TRUE_RANDOM: PRINT(COLOR_BLUE"T"COLOR_END); break;
+				case UNKNOWN_RANDOM: PRINT(COLOR_YELLOW"U"COLOR_END); break;
+				case NONE_RESULT: PRINT(COLOR_GREEN"N"COLOR_END);break;
+				default: ASSERT(0);
+			}
+			PRINT("   ");
+		}
+		PRINT("\n");
+	 }
+}
+typedef multimap<INT32, INT32> ROW_MAP;
+typedef multimap<INT32, INT32>::iterator ROW_MAP_ITER;
+typedef pair<ROW_MAP_ITER, ROW_MAP_ITER> ROW_MAP_RANGE;
+
+void solution_random_matrix(ELEMENT_TYPE **matrix, INT32 size, ROW_MAP unknown_row_map, INT32 *unknown_column_num,
+	INT32 *false_column_num, INT32 *true_column_num)
+{
+	INT32 unknown_num = unknown_row_map.size();
+	while(1){
+		//calculate diagonal value
+		for(INT32 idx=0; idx<size; idx++){
+			ELEMENT_TYPE current_res  =matrix[idx][idx];
+			if(current_res==NONE_RESULT){
+				if(false_column_num[idx]==0){
+					if(unknown_column_num[idx]==0){
+						ASSERT(true_column_num[idx]!=0);
+						matrix[idx][idx] = TRUE_RANDOM;
+					}
+				}else
+					matrix[idx][idx] = FALSE_RANDOM;
+				//scan row to change UNKNOW_RANDOM to current_res
+				ROW_MAP_RANGE range = unknown_row_map.equal_range(idx);
+				for(ROW_MAP_ITER iter = range.first; iter!=range.end; iter++){
+					INT32 row_idx = iter->first;
+					ASSERT(row_idx == idx);
+					INT32 column_idx = iter->second;
+					//set column num
+					if(matrix[idx][idx]==FALSE_RANDOM)
+						false_column_num[column_idx]++;
+					else if(matrix[idx][idx]==TRUE_RANDOM)
+						true_column_num[column_idx]++;
+					else
+						ASSERT(0);
+					unknown_column_num[column_idx]--;
+				}
+				unknown_row_map.erase(idx);			
+			}
+		}
+		INT32 unknown_num_iterator = unknown_row_map.size();
+		if(unknown_num_iterator==unknown_num){
+			if(unknown_num_iterator==0)
+				break;
+			else{//search one loop
+				for(INT32 idx=0; idx<size; idx++){
+					;
+				}
+			}
+		}else
+			unknown_num = unknown_num_iterator;
+	}
+}
+
 void Function::analyse_random_bb()
 {
 	// 1.initialize the bb map idx;
-	 INT32 bb_num = bb_list.size();
-	 map<BasicBlock*, INT32> bb_list_map_idx;
-	 for(INT32 idx=0; idx<bb_num; idx++)
+	INT32 bb_num = bb_list.size();
+	map<BasicBlock*, INT32> bb_list_map_idx;
+	for(INT32 idx=0; idx<bb_num; idx++)
 		bb_list_map_idx.insert(make_pair(bb_list[idx], idx));
-	 // 2.initialize the matrix
-	 ELEMENT_TYPE **random_matrix = new ELEMENT_TYPE*[bb_num];
-	 for(INT32 row=0; row<bb_num; row++){
+	// 2.initialize the matrix and multimap
+	ROW_MAP unknown_row_map;
+	INT32 *false_column_num = new INT32[bb_num](0);
+	INT32 *true_column_num = new INT32[bb_num](0);
+	INT32 *unknown_column_num = new INT32[bb_num](0);
+	ELEMENT_TYPE **random_matrix = new ELEMENT_TYPE*[bb_num];
+	for(INT32 row=0; row<bb_num; row++){
 		random_matrix[row] = new ELEMENT_TYPE[bb_num];
 		// 2.1 give a initialized num
 		for(INT32 column=0; column<bb_num; column++)
-			random_matrix[row][column] = EMPTY_RANDOM;
-		// 2.2
+			random_matrix[row][column] = row==column ? NONE_RESULT : EMPTY_RANDOM;
+		// 2.2 calculate the succ basicblock
 		BasicBlock *src_bb = bb_list[row];
 		BOOL is_call_bb = src_bb->is_call_bb();
 		if(is_call_bb){
 			ASSERT(!(src_bb->is_fallthrough_empty()) && src_bb->is_target_empty());
 			INT32 dest_bb_idx = bb_list_map_idx.find(src_bb->get_fallthrough_bb())->second;
 			random_matrix[row][dest_bb_idx] = FALSE_RANDOM;
+			//set record map
+			false_column_num[dest_bb_idx]++;
 		}else{
-			ELEMENT_TYPE succ_bb_type;
-			if(src_bb->find_first_least_size_instruction(5) == src_bb->end())
-				succ_bb_type = UNKNOWN_RANDOM;
-			else
-				succ_bb_type = TRUE_RANDOM;
+			ELEMENT_TYPE succ_bb_type = src_bb->find_first_least_size_instruction(5) == src_bb->end() ? UNKNOWN_RANDOM : TRUE_RANDOM;
 			//set target bb's matrix type
 			for(BB_ITER iter = src_bb->target_begin(); iter!=src_bb->target_end(); iter++){
 				INT32 dest_succ_idx = bb_list_map_idx.find(*iter)->second;
 				random_matrix[row][dest_succ_idx] = succ_bb_type;
+				//set record num
+				if(succ_bb_type==UNKNOWN_RANDOM){
+					unknown_column_num[dest_succ_idx]++;
+					unknown_row_map.insert(make_pair(row, dest_succ_idx));
+				}else
+					true_column_num[dest_succ_idx]++;
 			}
 			//set fallthrough 
 			if(src_bb->get_fallthrough_bb()){
 				INT32 dest_succ_idx = bb_list_map_idx.find(src_bb->get_fallthrough_bb())->second;
 				random_matrix[row][dest_succ_idx] = succ_bb_type;
+				//set record num
+				if(succ_bb_type==UNKNOWN_RANDOM){
+					unknown_column_num[dest_succ_idx]++;
+					unknown_row_map.insert(make_pair(row, dest_succ_idx));
+				}else
+					true_column_num[dest_succ_idx]++;
 			}
 		}
-	 }
-
-	 for(INT32 row=0; row<bb_num; row++){
-		for(INT32 column=0; column<bb_num; column++){
-			switch(random_matrix[row][column]){
-				case EMPTY_RANDOM: PRINT("E  "); break;
-				case FALSE_RANDOM: PRINT("F  "); break;
-				case TRUE_RANDOM: PRINT("T  "); break;
-				case UNKNOWN_RANDOM: PRINT("U  "); break;
-				default: ASSERT(0);
-			}
-		}
-		PRINT("\n");
-	 }
+	}
+	// 3.calculate the entry bb
+	random_matrix[0][0] = FALSE_RANDOM;
+	// 4.solution the matrix
+	
+	//dump
+	dump_random_matrix(random_matrix, bb_num);
 }

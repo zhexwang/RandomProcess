@@ -7,7 +7,7 @@
 #define COLOR_RED "\033[31m"
 #define COLOR_GREEN "\033[32m"
 #define COLOR_YELLOW "\033[33m"
-#define COLOR_BLUE "\033[34m"
+#define COLOR_BLUE "\033[01;34m"
 #define COLOR_END "\033[m"
 
 #define PRINT(format, ...) do{ fprintf(stderr, format, ##__VA_ARGS__);}while(0)
