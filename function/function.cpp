@@ -3,7 +3,7 @@
 
 Function::Function(CodeSegment *code_segment, string name, ORIGIN_ADDR origin_function_base, ORIGIN_SIZE origin_function_size)
 	:_code_segment(code_segment), _function_name(name), _origin_function_base(origin_function_base), _origin_function_size(origin_function_size)
-	, _random_cc_start(0), _random_cc_origin_start(0), _random_cc_size(0), is_already_disasm(false), is_already_split_into_bb(false)
+	, _random_cc_start(0), _random_cc_origin_start(0), _random_cc_size(0), is_already_disasm(false), is_already_split_into_bb(false), is_already_random_analysis(false)
 {
 	_function_base = code_segment->convert_origin_process_addr_to_this(_origin_function_base);
 	_function_size = (SIZE)_origin_function_size;
@@ -37,6 +37,8 @@ void Function::dump_bb_origin()
 }
 void Function::disassemble()
 {
+	if(is_already_disasm)
+		return ;
 	ORIGIN_ADDR origin_addr = _origin_function_base;
 	ADDR current_addr = _function_base;
 	SIZE security_size = _origin_function_size+1;//To see one more byte
@@ -61,8 +63,16 @@ void Function::point_to_random_function()
 
 SIZE Function::random_function(CODE_CACHE_ADDR cc_curr_addr, ORIGIN_ADDR cc_origin_addr)
 {
-	ASSERT(is_already_split_into_bb);
-
+	// 1.disasm
+	disassemble();
+	// 2.split into bb
+	split_into_basic_block();
+	// 3.analysis random bb entry situation
+	analyse_random_bb();
+	// 4.random
+	ASSERT(is_already_random_analysis);
+	vector<RELOCATION_ITEM> relocation;
+	// 4.1 copy random insts
 	SIZE bb_copy_size = 0;
 	_random_cc_start = cc_curr_addr;
 	_random_cc_origin_start = cc_origin_addr;
@@ -70,9 +80,17 @@ SIZE Function::random_function(CODE_CACHE_ADDR cc_curr_addr, ORIGIN_ADDR cc_orig
 	for(vector<BasicBlock *>::iterator ite = bb_list.begin(); ite!=bb_list.end(); ite++){
 		cc_curr_addr += bb_copy_size;
 		cc_origin_addr += bb_copy_size;
-		bb_copy_size = (*ite)->copy_instructions(cc_curr_addr, cc_origin_addr);
+		//find insts need to be random in the BB
+		(*ite)->random_analysis();
+		//random some insts in BB
+		bb_copy_size = (*ite)->copy_random_insts(cc_curr_addr, cc_origin_addr, relocation);
 		_random_cc_size += bb_copy_size;
 	}
+	// 4.2 relocate the address
+	for(vector<RELOCATION_ITEM>::iterator iter = relocation.begin(); iter!=relocation.end(); iter++){
+		;
+	}
+	
 	return _random_cc_size;
 }
 
@@ -96,6 +114,8 @@ typedef struct item{
 
 void Function::split_into_basic_block()
 {
+	if(is_already_split_into_bb)
+		return ;
 	ASSERT(is_already_disasm);
 	SIZE inst_sum = _origin_function_instructions.size();
 	Item *array = new Item[inst_sum];
@@ -145,9 +165,10 @@ void Function::split_into_basic_block()
 				array[idx+1].isBBEntry = true;
 			}
 		}else if(curr_inst->isIndirectJmp()){
-			//INFO("%.8lx indirectJmp!\n", curr_inst->get_inst_origin_addr() - _code_segment->code_start);
+			INFO("%.8lx indirectJmp!\n", curr_inst->get_inst_origin_addr() - _code_segment->code_start);
 			//add target
 			vector<ORIGIN_ADDR> *target_addr_list = _code_segment->find_target_by_inst_addr(curr_inst->get_inst_origin_addr());
+			INFO("Jmp* target=%d\n", (INT32)target_addr_list->size());
 			for(vector<ORIGIN_ADDR>::iterator it = target_addr_list->begin(); it!=target_addr_list->end(); it++){
 				Instruction *target_inst = get_instruction_by_addr(*it);
 				if(target_inst){
@@ -166,7 +187,7 @@ void Function::split_into_basic_block()
 			//add target
 			ORIGIN_ADDR target_addr = curr_inst->getBranchTargetOrigin();
 			Instruction *target_inst = get_instruction_by_addr(target_addr);
-			ASSERT(!target_inst);
+			ASSERT(!target_inst || (target_inst==_origin_function_instructions.front()));
 			array[idx].isBBEnd = true;
 			//add fallthrough
 			if((iter+1)!=_origin_function_instructions.end()){
@@ -304,29 +325,37 @@ void solution_random_matrix(ELEMENT_TYPE **matrix, INT32 size, ROW_MAP unknown_r
 		for(INT32 idx=0; idx<size; idx++){
 			ELEMENT_TYPE current_res  =matrix[idx][idx];
 			if(current_res==NONE_RESULT){
-				if(false_column_num[idx]==0){
-					if(unknown_column_num[idx]==0){
-						ASSERT(true_column_num[idx]!=0);
-						matrix[idx][idx] = TRUE_RANDOM;
-					}
-				}else
+				if(idx==0)//entry basic block
 					matrix[idx][idx] = FALSE_RANDOM;
-				//scan row to change UNKNOW_RANDOM to current_res
-				ROW_MAP_RANGE range = unknown_row_map.equal_range(idx);
-				for(ROW_MAP_ITER iter = range.first; iter!=range.end; iter++){
-					INT32 row_idx = iter->first;
-					ASSERT(row_idx == idx);
-					INT32 column_idx = iter->second;
-					//set column num
-					if(matrix[idx][idx]==FALSE_RANDOM)
-						false_column_num[column_idx]++;
-					else if(matrix[idx][idx]==TRUE_RANDOM)
-						true_column_num[column_idx]++;
-					else
-						ASSERT(0);
-					unknown_column_num[column_idx]--;
+				else{
+					if(false_column_num[idx]==0){
+						if(unknown_column_num[idx]==0){
+							if(true_column_num[idx]!=0);
+								matrix[idx][idx] = TRUE_RANDOM;
+						}
+					}else
+						matrix[idx][idx] = FALSE_RANDOM;
 				}
-				unknown_row_map.erase(idx);			
+				if(matrix[idx][idx]!=NONE_RESULT){
+					//scan row to change UNKNOW_RANDOM to current_res
+					ROW_MAP_RANGE range = unknown_row_map.equal_range(idx);
+					for(ROW_MAP_ITER iter = range.first; iter!=range.second; iter++){
+						INT32 row_idx = iter->first;
+						ASSERT(row_idx == idx);
+						INT32 column_idx = iter->second;
+						//set column num
+						if(matrix[idx][idx]==FALSE_RANDOM){
+							false_column_num[column_idx]++;
+							matrix[row_idx][column_idx] = FALSE_RANDOM;
+						}else if(matrix[idx][idx]==TRUE_RANDOM){
+							true_column_num[column_idx]++;
+							matrix[row_idx][column_idx] = TRUE_RANDOM;
+						}else
+							ASSERT(0);
+						unknown_column_num[column_idx]--;
+					}
+					unknown_row_map.erase(idx);		
+				}
 			}
 		}
 		INT32 unknown_num_iterator = unknown_row_map.size();
@@ -334,17 +363,40 @@ void solution_random_matrix(ELEMENT_TYPE **matrix, INT32 size, ROW_MAP unknown_r
 			if(unknown_num_iterator==0)
 				break;
 			else{//search one loop
+				BOOL find_loop = false;
 				for(INT32 idx=0; idx<size; idx++){
-					;
+					if((matrix[idx][idx]==NONE_RESULT)&&(unknown_row_map.find(idx)!=unknown_row_map.end())
+						&&(unknown_column_num[idx]!=0) &&(false_column_num[idx]==0) &&(true_column_num[idx]!=0)){
+						matrix[idx][idx] = TRUE_RANDOM;
+						//scan row to change UNKNOW_RANDOM to TRUE_RANDOM
+						ROW_MAP_RANGE range = unknown_row_map.equal_range(idx);
+						for(ROW_MAP_ITER iter = range.first; iter!=range.second; iter++){
+							INT32 row_idx = iter->first;
+							ASSERT(row_idx == idx);
+							INT32 column_idx = iter->second;
+							//set column num
+							true_column_num[column_idx]++;
+							matrix[row_idx][column_idx] = TRUE_RANDOM;
+							unknown_column_num[column_idx]--;
+						}
+						unknown_row_map.erase(idx);	
+						find_loop=true;
+						break;
+					}
 				}
+				ASSERT(find_loop);
 			}
-		}else
+		}else{
+			ASSERT(unknown_num_iterator<unknown_num);
 			unknown_num = unknown_num_iterator;
+		}
 	}
 }
 
 void Function::analyse_random_bb()
 {
+	if(is_already_random_analysis)return;
+	ASSERT(is_already_split_into_bb);
 	// 1.initialize the bb map idx;
 	INT32 bb_num = bb_list.size();
 	map<BasicBlock*, INT32> bb_list_map_idx;
@@ -352,9 +404,9 @@ void Function::analyse_random_bb()
 		bb_list_map_idx.insert(make_pair(bb_list[idx], idx));
 	// 2.initialize the matrix and multimap
 	ROW_MAP unknown_row_map;
-	INT32 *false_column_num = new INT32[bb_num](0);
-	INT32 *true_column_num = new INT32[bb_num](0);
-	INT32 *unknown_column_num = new INT32[bb_num](0);
+	INT32 *false_column_num = new INT32[bb_num]();
+	INT32 *true_column_num = new INT32[bb_num]();
+	INT32 *unknown_column_num = new INT32[bb_num]();
 	ELEMENT_TYPE **random_matrix = new ELEMENT_TYPE*[bb_num];
 	for(INT32 row=0; row<bb_num; row++){
 		random_matrix[row] = new ELEMENT_TYPE[bb_num];
@@ -364,28 +416,34 @@ void Function::analyse_random_bb()
 		// 2.2 calculate the succ basicblock
 		BasicBlock *src_bb = bb_list[row];
 		BOOL is_call_bb = src_bb->is_call_bb();
-		if(is_call_bb){
-			ASSERT(!(src_bb->is_fallthrough_empty()) && src_bb->is_target_empty());
-			INT32 dest_bb_idx = bb_list_map_idx.find(src_bb->get_fallthrough_bb())->second;
-			random_matrix[row][dest_bb_idx] = FALSE_RANDOM;
-			//set record map
-			false_column_num[dest_bb_idx]++;
+		if(is_call_bb){	
+			ASSERT(src_bb->is_target_empty());
+			if(!src_bb->is_fallthrough_empty()){
+				INT32 dest_bb_idx = bb_list_map_idx.find(src_bb->get_fallthrough_bb())->second;
+				ASSERT(dest_bb_idx!=row);
+				random_matrix[row][dest_bb_idx] = FALSE_RANDOM;
+				//set record map
+				false_column_num[dest_bb_idx]++;
+			}
 		}else{
 			ELEMENT_TYPE succ_bb_type = src_bb->find_first_least_size_instruction(5) == src_bb->end() ? UNKNOWN_RANDOM : TRUE_RANDOM;
 			//set target bb's matrix type
 			for(BB_ITER iter = src_bb->target_begin(); iter!=src_bb->target_end(); iter++){
 				INT32 dest_succ_idx = bb_list_map_idx.find(*iter)->second;
-				random_matrix[row][dest_succ_idx] = succ_bb_type;
-				//set record num
-				if(succ_bb_type==UNKNOWN_RANDOM){
-					unknown_column_num[dest_succ_idx]++;
-					unknown_row_map.insert(make_pair(row, dest_succ_idx));
-				}else
-					true_column_num[dest_succ_idx]++;
+				if(dest_succ_idx!=row){//used for handling self loop
+					random_matrix[row][dest_succ_idx] = succ_bb_type;
+					//set record num
+					if(succ_bb_type==UNKNOWN_RANDOM){
+						unknown_column_num[dest_succ_idx]++;
+						unknown_row_map.insert(make_pair(row, dest_succ_idx));
+					}else
+						true_column_num[dest_succ_idx]++;
+				}
 			}
 			//set fallthrough 
 			if(src_bb->get_fallthrough_bb()){
 				INT32 dest_succ_idx = bb_list_map_idx.find(src_bb->get_fallthrough_bb())->second;
+				ASSERT(dest_succ_idx!=row);
 				random_matrix[row][dest_succ_idx] = succ_bb_type;
 				//set record num
 				if(succ_bb_type==UNKNOWN_RANDOM){
@@ -396,10 +454,33 @@ void Function::analyse_random_bb()
 			}
 		}
 	}
-	// 3.calculate the entry bb
-	random_matrix[0][0] = FALSE_RANDOM;
-	// 4.solution the matrix
-	
-	//dump
-	dump_random_matrix(random_matrix, bb_num);
+	//INFO("====INIT matrix====\n");
+	//dump_random_matrix(random_matrix, bb_num);
+	// 3.solution the matrix
+	solution_random_matrix(random_matrix, bb_num, unknown_row_map, unknown_column_num, false_column_num, true_column_num);
+	// 4.set the basicblock random type
+	for(INT32 idx=0; idx<bb_num; idx++){
+		BasicBlock *curr_bb = bb_list[idx];
+		switch(random_matrix[idx][idx]){
+			case FALSE_RANDOM:
+				curr_bb->set_random_type(false);
+				break;
+			case TRUE_RANDOM:
+				curr_bb->set_random_type(true);
+				break;
+			default:
+				ASSERT(0);
+		}
+		curr_bb->finish_analyse();
+	}
+	// 5.set already analysis
+	is_already_random_analysis = true;
+	//INFO("====FINI matrix====\n");
+	//dump_random_matrix(random_matrix, bb_num);
+	// 6.free heap data
+	delete [] false_column_num;
+	delete [] true_column_num;
+	delete [] unknown_column_num;
+	for(INT32 idx=0; idx<bb_num; idx++)
+		delete [] random_matrix[idx];	
 }

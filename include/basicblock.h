@@ -2,6 +2,7 @@
 #define _BASICBLOCK_H_
 
 #include "instruction.h"
+#include "relocation.h"
 #include <vector>
 using namespace std;
 
@@ -18,20 +19,44 @@ private:
 	vector<BasicBlock *> target_bb_vec;
 	CODE_CACHE_ADDR _curr_copy_addr;
 	ORIGIN_ADDR _origin_copy_addr;
-	SIZE _generate_copy_size;
+	SIZE _generate_cc_size;
+	ORIGIN_ADDR _origin_entry_addr_after_random;
 	//used for random
 	BOOL is_already_finish_analyse;
 	BOOL entry_can_be_random;
-	BB_INS_ITER first_random_inst;//when entry can not be random, it may be partly random. So find out the first random inst
+	BB_INS_ITER random_inst_start;
+	BB_INS_ITER random_inst_end;
+	BOOL random_last_inst_need_jump_back;
+	BOOL is_already_finish_inst_analyse;
+	BOOL _is_self_loop;
 public:
-	BasicBlock():fallthrough_bb(NULL), _curr_copy_addr(0), _origin_copy_addr(0), _generate_copy_size(0)
-		, is_already_finish_analyse(false), entry_can_be_random(false), first_random_inst(instruction_vec.end())
+	BasicBlock():fallthrough_bb(NULL), _curr_copy_addr(0), _origin_copy_addr(0), _generate_cc_size(0), _origin_entry_addr_after_random(0)
+		, is_already_finish_analyse(false), entry_can_be_random(false), is_already_finish_inst_analyse(false), _is_self_loop(false)
 	{
 		;		
 	}
 	virtual ~BasicBlock()
 	{
 		;
+	}
+	ORIGIN_ADDR get_origin_addr_before_random()
+	{
+		return instruction_vec.front()->get_inst_origin_addr();
+	}
+	ORIGIN_ADDR get_origin_addr_after_random()
+	{
+		return _origin_entry_addr_after_random;
+	}
+	ORIGIN_ADDR modify_inst_origin_addr()
+	{
+		ASSERT(!instruction_vec.empty() && is_already_finish_analyse);
+		if(random_inst_start!=instruction_vec.end()){
+			if(!entry_can_be_random)
+				return (*random_inst_start)->get_inst_origin_addr();
+			else
+				return 0;
+		}else
+			return -1;
 	}
 	void insert_instruction(Instruction *inst)
 	{
@@ -89,6 +114,8 @@ public:
 	}
 	void add_target_bb(BasicBlock *target_bb)
 	{
+		if(target_bb==this)
+			_is_self_loop = true;
 		target_bb_vec.push_back(target_bb);
 	}
 	void add_fallthrough_bb(BasicBlock *fall_bb)
@@ -99,28 +126,31 @@ public:
 	{
 		return get_last_instruction()->isCall();
 	}
-	void finish_random_analyse()
+	BOOL is_self_loop()
 	{
-		is_already_finish_analyse = true;
+		return _is_self_loop;
 	}
 	BOOL can_be_random()
 	{
 		ASSERT(is_already_finish_analyse);
 		return entry_can_be_random;
 	}
-	void set_random_type(BOOL _can_be_random, BB_INS_ITER random_begin_inst)
+	void set_random_type(BOOL _entry_can_be_random)
 	{
 		ASSERT(!is_already_finish_analyse);
-		ASSERT(_can_be_random && (random_begin_inst==end()));
-		entry_can_be_random = _can_be_random;	
-		first_random_inst = random_begin_inst;
+		entry_can_be_random = _entry_can_be_random;	
 	}
-	BOOL finish_analyse()
+	void finish_analyse()
 	{
 		ASSERT(!is_already_finish_analyse);
-		return is_already_finish_analyse;
+		is_already_finish_analyse = true;
 	}
-	SIZE copy_instructions(CODE_CACHE_ADDR curr_target_addr, ORIGIN_ADDR origin_target_addr);
+	void intercept_jump();
+	void random_analysis();
+	SIZE random_unordinary_inst(Instruction *inst, CODE_CACHE_ADDR curr_target_addr, 
+		ORIGIN_ADDR origin_target_addr, vector<RELOCATION_ITEM> &relocation);
+	SIZE copy_random_insts(CODE_CACHE_ADDR curr_target_addr, ORIGIN_ADDR origin_target_addr, 
+		vector<RELOCATION_ITEM> &relocation);
 	BB_INS_ITER find_first_least_size_instruction(SIZE least_size);
 	void dump();
 };

@@ -4,6 +4,7 @@
 #include "disasm_common.h"
 #include "type.h"
 #include "utility.h"
+#include "codecache.h"
 
 class Instruction
 {
@@ -70,6 +71,15 @@ public:
 	ORIGIN_ADDR get_inst_origin_addr()
 	{
 		return _origin_instruction_addr;
+	}
+	ADDR get_inst_current_addr()
+	{
+		return _current_instruction_addr;
+	}
+	BOOL isOrdinaryInst()
+	{
+		ASSERT(is_already_disasm);
+		return inst_type==NONE_TYPE;
 	}
 	BOOL isCall()
 	{

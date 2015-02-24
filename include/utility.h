@@ -12,6 +12,7 @@
 
 #define PRINT(format, ...) do{ fprintf(stderr, format, ##__VA_ARGS__);}while(0)
 #define INFO(format, ...) do{ fprintf(stderr,COLOR_GREEN format COLOR_END, ##__VA_ARGS__);}while(0)
+#define BLUE(format, ...) do{ fprintf(stderr,COLOR_BLUE format COLOR_END, ##__VA_ARGS__);}while(0)
 #define ERR(format, ...) do{ fprintf(stderr,COLOR_RED format COLOR_END, ##__VA_ARGS__);}while(0)
 
 #ifdef _DEBUG
@@ -29,6 +30,5 @@
 #endif
 
 #define btoa(x) ((x)?"true":"false")
-
 
 #endif

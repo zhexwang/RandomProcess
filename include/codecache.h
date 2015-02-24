@@ -53,7 +53,7 @@ public:
 		origin_process_code_cache_ptr = 0;
 	}
 	
-	void disassemble(CODE_CACHE_ADDR start, CODE_CACHE_ADDR end)
+	void disassemble(const char prev_info[], CODE_CACHE_ADDR start, CODE_CACHE_ADDR end)
 	{
 		ASSERT(end<=current_code_cache_ptr);
 		_OffsetType origin_start = start-code_cache_start+origin_process_code_cache_start;
@@ -62,13 +62,13 @@ public:
 		UINT32 decodedInstsCount = 0;
 		distorm_decode(origin_start, (const unsigned char*)start, end-start, Decode64Bits, disassembled, end-start, &decodedInstsCount);
 		for(UINT32 i=0; i<decodedInstsCount; i++){
-			INFO("%12lx (%02d) %-24s  %s%s%s\n", disassembled[i].offset, disassembled[i].size, disassembled[i].instructionHex.p,\
+			PRINT("%s%12lx (%02d) %-24s  %s%s%s\n", prev_info, disassembled[i].offset, disassembled[i].size, disassembled[i].instructionHex.p,\
 				(char*)disassembled[i].mnemonic.p, disassembled[i].operands.length != 0 ? " " : "", (char*)disassembled[i].operands.p);
 		}
 		delete [] disassembled;
 	}
 };
 
-
+extern CodeCache *global_code_cache;
 
 #endif

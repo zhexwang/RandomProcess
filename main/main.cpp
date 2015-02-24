@@ -31,30 +31,6 @@ void readelf_to_find_all_functions()
 	return ;
 }
 
-void disasm_all_functions()
-{
-	for(CODE_SEG_MAP_ORIGIN_FUNCTION_ITERATOR it = CSfunctionMapOriginList.begin(); it!=CSfunctionMapOriginList.end(); it++){
-		for(MAP_ORIGIN_FUNCTION_ITERATOR iter = it->second->begin(); iter!=it->second->end(); iter++){
-			iter->second->disassemble();
-			//iter->second->dump_function_origin();
-		}
-	}
-	return ;
-}
-
-void split_function_into_basic_block()
-{
-	for(CODE_SEG_MAP_ORIGIN_FUNCTION_ITERATOR it = CSfunctionMapOriginList.begin(); it!=CSfunctionMapOriginList.end(); it++){
-		if(!it->first->isSO){
-			for(MAP_ORIGIN_FUNCTION_ITERATOR iter = it->second->begin(); iter!=it->second->end(); iter++){
-				iter->second->split_into_basic_block();
-				//iter->second->dump_bb_origin();
-			}
-		}
-	}
-	return ;
-}
-
 void random_all_functions()
 {
 	for(CODE_SEG_MAP_ORIGIN_FUNCTION_ITERATOR it = CSfunctionMapOriginList.begin(); it!=CSfunctionMapOriginList.end(); it++){
@@ -66,10 +42,9 @@ void random_all_functions()
 				SIZE size = iter->second->random_function(curr_cc_ptr, origin_cc_ptr);
 				global_code_cache->updateCC(size);
 				
-				iter->second->dump_function_origin();
+				//iter->second->dump_function_origin();
 				iter->second->dump_bb_origin();
-				/*global_code_cache->disassemble(curr_cc_ptr, curr_cc_ptr+size);*/
-				iter->second->analyse_random_bb();
+				//global_code_cache->disassemble("", curr_cc_ptr, curr_cc_ptr+size);				
 			}
 		}
 	}
@@ -78,25 +53,21 @@ void random_all_functions()
 
 int main(int argc, const char *argv[])
 {
-	//1.judge illegal
+	// 1.judge illegal
 	if(argc!=3){
 		ERR("Usage: ./%s shareCodeLogFile indirectProfileLogFile\n", argv[0]);
 		abort();
 	}
-	//2.read share log file and create code_segment_vec
+	// 2.read share log file and create code_segment_vec
 	ReadLog log(argv[1], argv[2]);
-	//3.init log
+	// 3.init log
 	log.init_share_log();
 	log.init_profile_log();//read indirect inst and target
-	//4.init code cache
+	// 4.init code cache
 	global_code_cache = init_code_cache();
 	//5.read elf to find function
 	readelf_to_find_all_functions();
-	//6.disasm
-	disasm_all_functions();
-	//7.split basic block
-	split_function_into_basic_block();
-	//8.random
+	//6.random
 	random_all_functions();
 	return 0;
 }

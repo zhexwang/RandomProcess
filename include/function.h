@@ -33,6 +33,7 @@ private:
 	BOOL is_already_disasm;
 	BOOL is_already_split_into_bb;
 	vector<BasicBlock*> bb_list;
+	BOOL is_already_random_analysis;
 public:
 	Function(CodeSegment *code_segment, string name, ORIGIN_ADDR origin_function_base, ORIGIN_SIZE origin_function_size);
 	virtual ~Function();

@@ -35,22 +35,13 @@ SIZE Instruction::random_call_inst_handle()
 
 SIZE Instruction::copy_instruction(CODE_CACHE_ADDR curr_copy_addr, ORIGIN_ADDR origin_copy_addr)
 {
-	ASSERT(is_already_disasm);
+	ASSERT(is_already_disasm && (inst_type==NONE_TYPE));
 	_curr_copy_addr = curr_copy_addr;
 	_origin_copy_addr = origin_copy_addr;
-	
+
 	if(_dInst.flags&FLAG_RIP_RELATIVE){
 		ERR("is PC relative!\n");
-	}else if(isCall()){
-		_inst_copy_size = random_call_inst_handle();
-	}else if (isDirectJmp()){
-		ERR("is direct jmp!\n");
-	}else if (isIndirectJmp()){
-		ERR("is indirect jmp!\n");
-	}else if (isConditionBranch()){
-		ERR("is condtion branch!\n");
-	
-	}else{//the instruction can be copy directly
+	}else {//the instruction can be copy directly
 		get_inst_code((UINT8 *)curr_copy_addr, _dInst.size);
 		_inst_copy_size = _dInst.size;
 	}
@@ -99,8 +90,9 @@ void Instruction::init_instruction_type()
 			break;
 		case FC_UNC_BRANCH:
 			if(_dInst.ops[0].type==O_PC){
-				char first_byte = _decodedInst.instructionHex.p[0];
-				ASSERT(first_byte!=0xff);
+				char first_c = _decodedInst.instructionHex.p[0];
+				char second_c = _decodedInst.instructionHex.p[1];;
+				ASSERT((first_c!='f')&&(second_c!='f'));
 				inst_type = DIRECT_JMP_TYPE;
 			}else
 				inst_type = INDIRECT_JMP_TYPE;
