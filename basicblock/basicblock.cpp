@@ -1,8 +1,10 @@
 #include "basicblock.h"
+#include "inst_macro.h"
 
 SIZE BasicBlock::copy_random_insts(ADDR curr_target_addr, ORIGIN_ADDR origin_target_addr, vector<RELOCATION_ITEM> &relocation)
 {
-	ASSERT(!instruction_vec.empty() && is_already_finish_analyse);
+	ASSERT(!instruction_vec.empty() && is_already_finish_analyse && !is_finish_generate_cc);
+	ASSERT((_generate_cc_size==0)&&(_curr_copy_addr==0)&&(_origin_copy_addr==0));
 	//calculate the origin_entry_addr
 	if(random_inst_start!=end()){
 		_origin_copy_addr = origin_target_addr;
@@ -13,7 +15,6 @@ SIZE BasicBlock::copy_random_insts(ADDR curr_target_addr, ORIGIN_ADDR origin_tar
 			_origin_entry_addr_after_random = instruction_vec.front()->get_inst_origin_addr();
 	}
 	//copy instrucitons
-	_generate_cc_size = 0;
 	SIZE inst_copy_size = 0;
 	for(vector<Instruction*>::iterator iter = random_inst_start; (iter<=random_inst_end && iter!=end()); iter++){
 		curr_target_addr += inst_copy_size;
@@ -47,12 +48,34 @@ SIZE BasicBlock::copy_random_insts(ADDR curr_target_addr, ORIGIN_ADDR origin_tar
 SIZE BasicBlock::random_unordinary_inst(Instruction *inst, CODE_CACHE_ADDR curr_target_addr, 
 	ORIGIN_ADDR origin_target_addr, vector<RELOCATION_ITEM> &relocation)
 {
-
+	CODE_CACHE_ADDR cc_start = curr_target_addr;
+	ASSERT(!is_finish_generate_cc);
+	if(inst->isRet())
+		return inst->copy_instruction(curr_target_addr, origin_target_addr);
+	else if(inst->isCall())
+		ASSERTM(0, "call inst can not exist in this function!");
+	else if(inst->isDirectJmp()){
+		ASSERT(target_bb_vec.size()==1);
+		RELOCATION_ITEM reloc_info = {JMP_REL32_BB_PTR, (cc_start+1), (ADDR)target_bb_vec[0]};
+		relocation.push_back(reloc_info);
+		JMP_REL32(0x0, cc_start);
+		ERR("%p, direct jmp\n", this);
+	}else if(inst->isIndirectJmp()){
+		ASSERT(0);
+	}else if(inst->isUnConditionBranch()){
+		ASSERT(0);
+	}else if(inst->isConditionBranch()){
+		ASSERT((target_bb_vec.size()==1)&&fallthrough_bb);
+		ERR("%p, condition branch\n", this);//ASSERT(0);
+	}else
+		ASSERT(0);
+	return cc_start - curr_target_addr;
 }
 
 void BasicBlock::intercept_jump()
 {
-	ASSERT(!instruction_vec.empty() && is_already_finish_analyse && (_origin_copy_addr!=0) && (_curr_copy_addr!=0));
+	ASSERT(!instruction_vec.empty() && is_already_finish_analyse && (_origin_copy_addr!=0) && (_curr_copy_addr!=0) 
+		&& is_finish_generate_cc);
 	if(random_inst_start!=instruction_vec.end()){
 		if(!entry_can_be_random){
 			//get addr in this process
@@ -163,8 +186,11 @@ void BasicBlock::dump()
 				INFO("  |---DUMP CC INSTRUCTIONS:(ENTRY NOT RANDOM, INTERCEPT INST: %lx)\n", modify_addr);
 		}
 		
-		if(_curr_copy_addr!=0 && random_inst_start!=instruction_vec.end()){
-			global_code_cache->disassemble("        |---", _curr_copy_addr, _curr_copy_addr+_generate_cc_size);
+		if(random_inst_start!=instruction_vec.end()){
+			if(is_finish_generate_cc)
+				global_code_cache->disassemble("        |---", _curr_copy_addr, _curr_copy_addr+_generate_cc_size);
+			else
+				PRINT("        |---      CC DO NOT GENERATE\n");
 		}else
 			PRINT("        |---      CC NONE\n");
 	}else

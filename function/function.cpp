@@ -73,10 +73,10 @@ SIZE Function::random_function(CODE_CACHE_ADDR cc_curr_addr, ORIGIN_ADDR cc_orig
 	ASSERT(is_already_random_analysis);
 	vector<RELOCATION_ITEM> relocation;
 	// 4.1 copy random insts
+	ASSERT((_random_cc_start==0) && (_random_cc_origin_start==0) && (_random_cc_size==0));
 	SIZE bb_copy_size = 0;
 	_random_cc_start = cc_curr_addr;
 	_random_cc_origin_start = cc_origin_addr;
-	_random_cc_size = 0;
 	for(vector<BasicBlock *>::iterator ite = bb_list.begin(); ite!=bb_list.end(); ite++){
 		cc_curr_addr += bb_copy_size;
 		cc_origin_addr += bb_copy_size;
@@ -86,12 +86,28 @@ SIZE Function::random_function(CODE_CACHE_ADDR cc_curr_addr, ORIGIN_ADDR cc_orig
 		bb_copy_size = (*ite)->copy_random_insts(cc_curr_addr, cc_origin_addr, relocation);
 		_random_cc_size += bb_copy_size;
 	}
-	// 4.2 relocate the address
+	// 4.2 relocate the address and finish 
 	for(vector<RELOCATION_ITEM>::iterator iter = relocation.begin(); iter!=relocation.end(); iter++){
 		;
 	}
-	
+	// 5 finish random
+	for(vector<BasicBlock *>::iterator ite = bb_list.begin(); ite!=bb_list.end(); ite++){
+		(*ite)->finish_generate_cc();
+	}
 	return _random_cc_size;
+}
+
+void Function::flush_function_cc()
+{
+	//recover the 	cc used
+	global_code_cache->freeCC(_random_cc_start, _random_cc_origin_start, _random_cc_size);
+	//flush record in function
+	_random_cc_start = 0;
+	_random_cc_size = 0;
+	_random_cc_origin_start = 0;
+	//flush record in bb
+	for(vector<BasicBlock*>::iterator iter = bb_list.begin(); iter!=bb_list.end(); iter++)
+		(*iter)->flush_generate_cc();
 }
 
 Instruction *Function::get_instruction_by_addr(ORIGIN_ADDR origin_addr)

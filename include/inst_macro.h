@@ -286,6 +286,13 @@ static void convertCallinToJmpin(uint64_t callin_instcode, uint8_t callin_size, 
 	ptr = reinterpret_cast<ADDR>(ptr1);\
 }while(0)
 
+//nop
+#define NOP(ptr) do{\
+	uint8_t *ptr1 = reinterpret_cast<uint8_t*>(ptr);\
+	*(ptr1++) = 0x90;\
+	ptr = reinterpret_cast<ADDR>(ptr1);\
+}while(0)
+
 //cmp $imm32,%reg64
 #define CMP_IMM32_REG64(imm, reg_num, ptr) do{ \
     RegisterEncode regEncode = RegisterMap(reg_num);\

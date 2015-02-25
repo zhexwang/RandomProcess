@@ -35,11 +35,13 @@ SIZE Instruction::random_call_inst_handle()
 
 SIZE Instruction::copy_instruction(CODE_CACHE_ADDR curr_copy_addr, ORIGIN_ADDR origin_copy_addr)
 {
-	ASSERT(is_already_disasm && (inst_type==NONE_TYPE));
+	ASSERT(is_already_disasm && (inst_type==NONE_TYPE || inst_type==RET_TYPE));
 	_curr_copy_addr = curr_copy_addr;
 	_origin_copy_addr = origin_copy_addr;
 
 	if(_dInst.flags&FLAG_RIP_RELATIVE){
+		NOP(curr_copy_addr);
+		_inst_copy_size = 0x1;
 		ERR("is PC relative!\n");
 	}else {//the instruction can be copy directly
 		get_inst_code((UINT8 *)curr_copy_addr, _dInst.size);

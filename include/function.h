@@ -47,6 +47,7 @@ public:
 	virtual void analyse_random_bb();
 	Instruction *get_instruction_by_addr(ORIGIN_ADDR origin_addr);
 	SIZE random_function(CODE_CACHE_ADDR cc_curr_addr, ORIGIN_ADDR cc_origin_addr);
+	void flush_function_cc();
 };
 
 #endif

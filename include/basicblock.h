@@ -28,10 +28,11 @@ private:
 	BB_INS_ITER random_inst_end;
 	BOOL random_last_inst_need_jump_back;
 	BOOL is_already_finish_inst_analyse;
+	BOOL is_finish_generate_cc;
 	BOOL _is_self_loop;
 public:
 	BasicBlock():fallthrough_bb(NULL), _curr_copy_addr(0), _origin_copy_addr(0), _generate_cc_size(0), _origin_entry_addr_after_random(0)
-		, is_already_finish_analyse(false), entry_can_be_random(false), is_already_finish_inst_analyse(false), _is_self_loop(false)
+		, is_already_finish_analyse(false), entry_can_be_random(false), is_already_finish_inst_analyse(false), is_finish_generate_cc(false), _is_self_loop(false)
 	{
 		;		
 	}
@@ -45,6 +46,7 @@ public:
 	}
 	ORIGIN_ADDR get_origin_addr_after_random()
 	{
+		ASSERT(_origin_entry_addr_after_random!=0);
 		return _origin_entry_addr_after_random;
 	}
 	ORIGIN_ADDR modify_inst_origin_addr()
@@ -144,6 +146,20 @@ public:
 	{
 		ASSERT(!is_already_finish_analyse);
 		is_already_finish_analyse = true;
+	}
+	void finish_generate_cc()
+	{
+		ASSERT(!is_finish_generate_cc);
+		is_finish_generate_cc = true;
+	}
+	void flush_generate_cc()
+	{
+		ASSERT(is_finish_generate_cc);
+		_origin_entry_addr_after_random = 0;
+		_curr_copy_addr = 0;
+		_origin_copy_addr = 0;
+		_generate_cc_size = 0;
+		is_finish_generate_cc = false;
 	}
 	void intercept_jump();
 	void random_analysis();

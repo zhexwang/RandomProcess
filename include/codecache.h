@@ -33,6 +33,11 @@ public:
 		return code_cache_addr - code_cache_start + origin_process_code_cache_start;
 	}
 
+	void freeCC(CODE_CACHE_ADDR curr_addr, ORIGIN_ADDR origin_addr, SIZE cc_size)
+	{
+		ASSERT((curr_addr-code_cache_start+origin_process_code_cache_start)==curr_addr);
+	}
+	
 	void updateCC(SIZE used_size)
 	{
 		current_code_cache_ptr += used_size;
