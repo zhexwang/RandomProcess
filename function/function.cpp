@@ -61,12 +61,12 @@ void Function::point_to_random_function()
 	NOT_IMPLEMENTED(wz);
 }
 
-SIZE Function::random_function(CODE_CACHE_ADDR cc_curr_addr, ORIGIN_ADDR cc_origin_addr)
+SIZE Function::random_function(CODE_CACHE_ADDR cc_curr_addr, ORIGIN_ADDR cc_origin_addr, MAP_ORIGIN_FUNCTION *func_map)
 {
 	// 1.disasm
 	disassemble();
 	// 2.split into bb
-	split_into_basic_block();
+	split_into_basic_block(func_map);
 	// 3.analysis random bb entry situation
 	analyse_random_bb();
 	// 4.random
@@ -128,7 +128,7 @@ typedef struct item{
 	BOOL isBBEnd;
 }Item;
 
-void Function::split_into_basic_block()
+void Function::split_into_basic_block(MAP_ORIGIN_FUNCTION *func_map)
 {
 	if(is_already_split_into_bb)
 		return ;
@@ -156,14 +156,14 @@ void Function::split_into_basic_block()
 			if(target_inst)
 				array[idx].targetList.push_back(target_inst);
 			else
-				ERR("%.8lx  find none target in condtionjmp!\n", curr_inst->get_inst_origin_addr());
+				ASSERTM(0, "%.8lx  find none target in condtionjmp!\n", curr_inst->get_inst_origin_addr());
 			array[idx].isBBEnd = true;
 			//add fallthrough inst
 			if((iter+1)!=_origin_function_instructions.end()){
 				array[idx].fallthroughInst = *(iter+1);
 				array[idx+1].isBBEntry = true;
 			}else{
-				ERR("%.8lx  fallthrough inst out of function!\n", curr_inst->get_inst_origin_addr());
+				ASSERTM(0, "%.8lx  fallthrough inst out of function!\n", curr_inst->get_inst_origin_addr());
 				array[idx].fallthroughInst = NULL;
 			}
 		}else if(curr_inst->isDirectJmp()){
@@ -173,8 +173,11 @@ void Function::split_into_basic_block()
 			Instruction *target_inst = get_instruction_by_addr(target_addr);
 			if(target_inst)
 				array[idx].targetList.push_back(target_inst);
-			else
-				ERR("%.8lx  target inst is empty in directjmp\n", curr_inst->get_inst_origin_addr());
+			else{//TODO: PLT
+			/*
+				ASSERTM(((func_map->find(target_addr)) != (func_map->end())), \
+					"%.8lx  target inst is empty in directjmp && target is function\n", curr_inst->get_inst_origin_addr());
+			*/}
 			array[idx].fallthroughInst = NULL;
 			array[idx].isBBEnd = true;
 			if((iter+1)!=_origin_function_instructions.end()){
@@ -190,10 +193,10 @@ void Function::split_into_basic_block()
 				if(target_inst){
 					array[idx].targetList.push_back(target_inst);
 				}else
-					ERR("%.8lx  target inst is out of function!\n", curr_inst->get_inst_origin_addr());
+					ASSERTM(0, "%.8lx  target inst is out of function!\n", curr_inst->get_inst_origin_addr());
 			}
 			if(array[idx].targetList.size()==0)
-				ERR("%.8lx  do not find target!\n", curr_inst->get_inst_origin_addr());
+				ASSERTM(0, "%.8lx  do not find target!\n", curr_inst->get_inst_origin_addr());
 			array[idx].fallthroughInst = NULL;
 			array[idx].isBBEnd = true;
 			if((iter+1)!=_origin_function_instructions.end())

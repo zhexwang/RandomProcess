@@ -6,6 +6,7 @@
 #include "instruction.h"
 #include "Basicblock.h"
 #include "code_segment.h"
+#include "map_function.h"
 #include <vector>
 #include <map>
 using namespace std;
@@ -43,10 +44,10 @@ public:
 	ORIGIN_ADDR get_origin_function_base(){return _origin_function_base;}
 	void point_to_random_function();
 	void disassemble();
-	void split_into_basic_block();
+	void split_into_basic_block(MAP_ORIGIN_FUNCTION *func_map);
 	virtual void analyse_random_bb();
 	Instruction *get_instruction_by_addr(ORIGIN_ADDR origin_addr);
-	SIZE random_function(CODE_CACHE_ADDR cc_curr_addr, ORIGIN_ADDR cc_origin_addr);
+	SIZE random_function(CODE_CACHE_ADDR cc_curr_addr, ORIGIN_ADDR cc_origin_addr, MAP_ORIGIN_FUNCTION *func_map);
 	void flush_function_cc();
 };
 

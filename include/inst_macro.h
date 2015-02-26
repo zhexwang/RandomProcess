@@ -342,6 +342,34 @@ static void convertCallinToJmpin(uint64_t callin_instcode, uint8_t callin_size, 
 	*(++jle_ptr) = offset;\
 }while(0)
 
+/*****32offset Jcc******/
+#define JA_REL32(relocation_pos, ptr) do{\
+	relocation_pos = ptr+2;\
+	short *ptr1 = reinterpret_cast<short*>(ptr);\
+	*(ptr1++) = 0x0f87;\
+	int *ptr2 = reinterpret_cast<int*>(ptr1);\
+	*(ptr2++) = 0x00;\
+	ptr = reinterpret_cast<int*>(ptr2);\
+}while(0)
+
+#define JAE_REL32(relocation_pos, ptr) do{\
+	relocation_pos = ptr+2;\
+	short *ptr1 = reinterpret_cast<short*>(ptr);\
+	*(ptr1++) = 0x0f83;\
+	int *ptr2 = reinterpret_cast<int*>(ptr1);\
+	*(ptr2++) = 0x00;\
+	ptr = reinterpret_cast<int*>(ptr2);\
+}while(0)
+
+#define JB_REL32(relocation_pos, ptr) do{\
+	relocation_pos = ptr+2;\
+	short *ptr1 = reinterpret_cast<short*>(ptr);\
+	*(ptr1++) = 0x0f82;\
+	int *ptr2 = reinterpret_cast<int*>(ptr1);\
+	*(ptr2++) = 0x00;\
+	ptr = reinterpret_cast<int*>(ptr2);\
+}while(0)
+
 
 //mov $imm32, rsi
 #define MOV_IMM32_RSI(imm, ptr) do{\

@@ -45,6 +45,25 @@ public:
 			return 0;
 		}
 	}
+
+	UINT16 get_inst_opcode()
+	{
+		ASSERT(is_already_disasm);
+		return _dInst.opcode;
+	}
+	
+	UINT8 get_inst_code_first_byte()
+	{
+		ASSERT(is_already_disasm && _dInst.size>=1);
+		return char_to_encode(_decodedInst.instructionHex.p[0])*16+char_to_encode(_decodedInst.instructionHex.p[1]);
+	}
+
+	UINT8 get_inst_code_second_byte()
+	{
+		ASSERT(is_already_disasm && _dInst.size>=2);
+		return char_to_encode(_decodedInst.instructionHex.p[2])*16+char_to_encode(_decodedInst.instructionHex.p[3]);
+	}
+		
 	void get_inst_code(UINT8 *encode, SIZE size)
 	{
 		ASSERT(is_already_disasm && size==_dInst.size);
@@ -145,7 +164,6 @@ public:
 	SIZE copy_instruction(CODE_CACHE_ADDR curr_copy_addr, ORIGIN_ADDR origin_copy_addr);
 	void dump();
 private:
-	SIZE random_call_inst_handle();
 	void init_instruction_type();
 };
 

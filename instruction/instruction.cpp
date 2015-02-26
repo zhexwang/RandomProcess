@@ -13,7 +13,7 @@ Instruction::Instruction(ORIGIN_ADDR origin_addr, ADDR current_addr, SIZE instru
 {
 	;
 }
-
+/*
 SIZE Instruction::random_call_inst_handle()
 {
 	ASSERT(isCall()&&(_curr_copy_addr!=0)&&(_origin_copy_addr!=0));
@@ -32,7 +32,7 @@ SIZE Instruction::random_call_inst_handle()
 	}
 	return code_start - _curr_copy_addr;
 }
-
+*/
 SIZE Instruction::copy_instruction(CODE_CACHE_ADDR curr_copy_addr, ORIGIN_ADDR origin_copy_addr)
 {
 	ASSERT(is_already_disasm && (inst_type==NONE_TYPE || inst_type==RET_TYPE));
@@ -40,14 +40,37 @@ SIZE Instruction::copy_instruction(CODE_CACHE_ADDR curr_copy_addr, ORIGIN_ADDR o
 	_origin_copy_addr = origin_copy_addr;
 
 	if(_dInst.flags&FLAG_RIP_RELATIVE){
-		NOP(curr_copy_addr);
-		_inst_copy_size = 0x1;
-		ERR("is PC relative!\n");
-	}else {//the instruction can be copy directly
+		ASSERTM(_dInst.ops[0].type==O_SMEM || _dInst.ops[0].type==O_MEM 
+			|| _dInst.ops[1].type==O_SMEM || _dInst.ops[1].type==O_MEM, "unknown operand in RIP-operand!\n");
+		INT64 offset_64 = _origin_copy_addr - _origin_instruction_addr - _dInst.disp;
+		ASSERT((offset_64 > 0 ? offset_64 : -offset_64) < 0x7fffffff);
+		offset_64 = _origin_copy_addr - _origin_instruction_addr;
+		ASSERT((offset_64 > 0 ? offset_64 : -offset_64) < 0x7fffffff);
+		INT32 offset = (INT32)offset_64;
+		//copy inst
 		get_inst_code((UINT8 *)curr_copy_addr, _dInst.size);
-		_inst_copy_size = _dInst.size;
-	}
+		//find disp
+		INT32 *disp_pos = reinterpret_cast<INT32*>(curr_copy_addr);
+		INT32 *end = reinterpret_cast<INT32*>(curr_copy_addr + _dInst.size - 3);
+		BOOL match = false;
+		INT32 *record_pos = NULL;
+		while(disp_pos!=end){
+			if((*disp_pos)==(INT32)_dInst.disp){
+				ASSERT(!match);
+				record_pos = disp_pos;
+				match = true;
+			}
+			
+			UINT8 *move = reinterpret_cast<UINT8*>(disp_pos);
+			move++;
+			disp_pos = reinterpret_cast<INT32*>(move);
+		}
+		ASSERT(match);
+		*record_pos -=  offset;
+	}else //the instruction can be copy directly
+		get_inst_code((UINT8 *)curr_copy_addr, _dInst.size);
 
+	_inst_copy_size = _dInst.size;
 	return _inst_copy_size;
 }
 

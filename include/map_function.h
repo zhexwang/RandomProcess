@@ -1,11 +1,12 @@
 #ifndef _MAP_FUNCTION_H_
 #define _MAP_FUNCTION_H_
 
-#include "function.h"
 #include "code_segment.h"
 #include "type.h"
 #include <map>
 using namespace std;
+
+class Function;
 
 typedef map<ORIGIN_ADDR, Function *> MAP_ORIGIN_FUNCTION;
 typedef pair<ORIGIN_ADDR, Function *> MAP_ORIGIN_FUNCTION_PAIR;

@@ -39,7 +39,7 @@ void random_all_functions()
 				CODE_CACHE_ADDR curr_cc_ptr = 0;
 				ORIGIN_ADDR origin_cc_ptr = 0;
 				global_code_cache->getCCCurrent(curr_cc_ptr, origin_cc_ptr);
-				SIZE size = iter->second->random_function(curr_cc_ptr, origin_cc_ptr);
+				SIZE size = iter->second->random_function(curr_cc_ptr, origin_cc_ptr, it->second);
 				global_code_cache->updateCC(size);
 				
 				//iter->second->dump_function_origin();

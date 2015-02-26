@@ -13,7 +13,9 @@ SIZE BasicBlock::copy_random_insts(ADDR curr_target_addr, ORIGIN_ADDR origin_tar
 			_origin_entry_addr_after_random = _origin_copy_addr;
 		else
 			_origin_entry_addr_after_random = instruction_vec.front()->get_inst_origin_addr();
-	}
+	}else
+		_origin_entry_addr_after_random = instruction_vec.front()->get_inst_origin_addr();
+	
 	//copy instrucitons
 	SIZE inst_copy_size = 0;
 	for(vector<Instruction*>::iterator iter = random_inst_start; (iter<=random_inst_end && iter!=end()); iter++){
@@ -55,18 +57,55 @@ SIZE BasicBlock::random_unordinary_inst(Instruction *inst, CODE_CACHE_ADDR curr_
 	else if(inst->isCall())
 		ASSERTM(0, "call inst can not exist in this function!");
 	else if(inst->isDirectJmp()){
-		ASSERT(target_bb_vec.size()==1);
-		RELOCATION_ITEM reloc_info = {JMP_REL32_BB_PTR, (cc_start+1), (ADDR)target_bb_vec[0]};
-		relocation.push_back(reloc_info);
-		JMP_REL32(0x0, cc_start);
-		ERR("%p, direct jmp\n", this);
+		ASSERT(target_bb_vec.size()<=1);
+		if(target_bb_vec.size()==1){
+			RELOCATION_ITEM reloc_info = {JMP_REL32_BB_PTR, (cc_start+1), (ADDR)target_bb_vec[0]};
+			relocation.push_back(reloc_info);
+			JMP_REL32(0x0, cc_start);
+		}else{
+			ORIGIN_ADDR target_addr = inst->getBranchTargetOrigin();
+			INT64 offset = target_addr - origin_target_addr - 0x5;
+			ASSERT((offset > 0 ? offset : -offset) < 0x7fffffff);
+			JMP_REL32(offset, cc_start);
+			ERR("%p, JMP no target!\n", this);
+		}
 	}else if(inst->isIndirectJmp()){
-		ASSERT(0);
-	}else if(inst->isUnConditionBranch()){
 		ASSERT(0);
 	}else if(inst->isConditionBranch()){
 		ASSERT((target_bb_vec.size()==1)&&fallthrough_bb);
-		ERR("%p, condition branch\n", this);//ASSERT(0);
+		/*
+		 * Indicates the instruction is one of:
+		 * JCXZ, JO, JNO, JB, JAE, JZ, JNZ, JBE, JA, JS, JNS, JP, JNP, JL, JGE, JLE, JG, LOOP, LOOPZ, LOOPNZ.
+		 */
+		switch(inst->get_inst_opcode()){
+			case I_JA: case I_JAE: case I_JB: case I_JBE: case I_JCXZ: case I_JECXZ: case I_JG:
+			case I_JGE: case I_JL: case I_JLE: case I_JNO: case I_JNP: case I_JNS: case I_JNZ:
+			case I_JO: case I_JP: case I_JRCXZ: case I_JS: case I_JZ:{
+				//judge is jump short or jump near
+				UINT8 first_byte = inst->get_inst_code_first_byte();
+				UINT8 base_opcode = first_byte==0x0f ? inst->get_inst_code_second_byte() : first_byte+0x10;
+				//generate target
+				UINT8 *ptr = reinterpret_cast<UINT8*>(cc_start);
+				*(ptr++) = 0x0f;
+				*(ptr++) = base_opcode;
+				RELOCATION_ITEM target_reloc_info = {JMP_REL32_BB_PTR, (ADDR)ptr, (ADDR)target_bb_vec[0]};
+				relocation.push_back(target_reloc_info);
+				INT32 *ptr1 = reinterpret_cast<INT32 *>(ptr);
+				*(ptr1++) = 0x0;
+				cc_start = reinterpret_cast<ADDR>(ptr1);
+				//generate fallthrough
+				RELOCATION_ITEM fallthrough_reloc_info = {JMP_REL32_BB_PTR, (cc_start+1), (ADDR)fallthrough_bb};
+				relocation.push_back(fallthrough_reloc_info);
+				JMP_REL32(0x0, cc_start);				
+				break;}
+			case I_LOOP: case I_LOOPZ: case I_LOOPNZ:{
+				ASSERTM(0, "LOOP unhandle!\n");
+				break;}
+			default:
+				ERR("Unknown condition branch inst: ");
+				inst->dump();
+				ASSERT(0);
+		}
 	}else
 		ASSERT(0);
 	return cc_start - curr_target_addr;
@@ -140,8 +179,8 @@ BB_INS_ITER BasicBlock::find_first_least_size_instruction(SIZE least_size)
 void BasicBlock::dump()
 {
 	ASSERT(!instruction_vec.empty());
-	PRINT(COLOR_BLUE"(BasicBlock *)%p[0x%lx-0x%lx](%d)\n"COLOR_END, this, get_first_instruction()->get_inst_origin_addr(), 
-		get_last_instruction()->get_inst_origin_addr(), (INT32)instruction_vec.size());
+	PRINT(COLOR_BLUE"(BasicBlock *)%p[0x%lx-0x%lx](%d)[RandomEntry: 0x%lx]\n"COLOR_END, this, get_first_instruction()->get_inst_origin_addr(), 
+		get_last_instruction()->get_inst_origin_addr(), (INT32)instruction_vec.size(), _origin_entry_addr_after_random);
 	INFO("  |---Prev BasicBlock:  ");
 	INT32 idx=0;
 	for(vector<BasicBlock*>::iterator it = prev_bb_vec.begin(); it!=prev_bb_vec.end(); it++){

@@ -1,4 +1,5 @@
 #include "map_function.h"
+#include "function.h"
 
 void dump_function_origin_list(CODE_SEG_MAP_ORIGIN_FUNCTION *CS_origin_function_map)
 {
