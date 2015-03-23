@@ -35,7 +35,7 @@ SIZE Instruction::random_call_inst_handle()
 */
 SIZE Instruction::copy_instruction(CODE_CACHE_ADDR curr_copy_addr, ORIGIN_ADDR origin_copy_addr)
 {
-	ASSERT(is_already_disasm && (inst_type==NONE_TYPE || inst_type==RET_TYPE));
+	ASSERT(is_already_disasm && (inst_type==NONE_TYPE || inst_type==RET_TYPE || inst_type==INDIRECT_CALL_TYPE));
 	_curr_copy_addr = curr_copy_addr;
 	_origin_copy_addr = origin_copy_addr;
 

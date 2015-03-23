@@ -4,8 +4,8 @@
 #include "type.h"
 
 typedef enum RELOCATION_TYPE{
-	JMP_REL8_BB_PTR = 0,
-	JMP_REL32_BB_PTR,
+	REL8_BB_PTR = 0,
+	REL32_BB_PTR,
 	ABSOLUTE_BB_PTR,
 	RELOCATION_TYPE_NUM,
 }RELOCATION_TYPE;
@@ -13,6 +13,7 @@ typedef enum RELOCATION_TYPE{
 typedef struct relocation_item{
 	RELOCATION_TYPE type;
 	ADDR relocate_pos;
+	ORIGIN_ADDR origin_base_addr;
 	ADDR target_bb_ptr;
 }RELOCATION_ITEM;
 

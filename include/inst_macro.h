@@ -410,6 +410,14 @@ static void convertCallinToJmpin(uint64_t callin_instcode, uint8_t callin_size, 
 	ptr = reinterpret_cast<ADDR>(ptr2);\
 }while(0)
 
+//Call rel32
+#define CALL_REL32(offset, ptr) do{\
+	uint8_t *ptr1 = reinterpret_cast<uint8_t *>(ptr);\
+	*(ptr1++) = 0xe8;\
+	uint32_t *ptr2 = reinterpret_cast<uint32_t*>(ptr1);\
+	*(ptr2++) = (uint32_t)offset;\
+	ptr = reinterpret_cast<ADDR>(ptr2);\
+}while(0)
 
 #define INV_INS_1(ptr)      do{*(UINT8 *)ptr = 0xd6;} while(0)
 #define INV_INS_2(ptr)      do{*(UINT16 *)ptr = 0x360f;} while(0)

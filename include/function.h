@@ -34,7 +34,6 @@ private:
 	BOOL is_already_disasm;
 	BOOL is_already_split_into_bb;
 	vector<BasicBlock*> bb_list;
-	BOOL is_already_random_analysis;
 public:
 	Function(CodeSegment *code_segment, string name, ORIGIN_ADDR origin_function_base, ORIGIN_SIZE origin_function_size);
 	virtual ~Function();
@@ -45,7 +44,6 @@ public:
 	void point_to_random_function();
 	void disassemble();
 	void split_into_basic_block(MAP_ORIGIN_FUNCTION *func_map);
-	virtual void analyse_random_bb();
 	Instruction *get_instruction_by_addr(ORIGIN_ADDR origin_addr);
 	SIZE random_function(CODE_CACHE_ADDR cc_curr_addr, ORIGIN_ADDR cc_origin_addr, MAP_ORIGIN_FUNCTION *func_map);
 	void flush_function_cc();

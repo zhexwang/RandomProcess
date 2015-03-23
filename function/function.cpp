@@ -3,7 +3,7 @@
 
 Function::Function(CodeSegment *code_segment, string name, ORIGIN_ADDR origin_function_base, ORIGIN_SIZE origin_function_size)
 	:_code_segment(code_segment), _function_name(name), _origin_function_base(origin_function_base), _origin_function_size(origin_function_size)
-	, _random_cc_start(0), _random_cc_origin_start(0), _random_cc_size(0), is_already_disasm(false), is_already_split_into_bb(false), is_already_random_analysis(false)
+	, _random_cc_start(0), _random_cc_origin_start(0), _random_cc_size(0), is_already_disasm(false), is_already_split_into_bb(false)
 {
 	_function_base = code_segment->convert_origin_process_addr_to_this(_origin_function_base);
 	_function_size = (SIZE)_origin_function_size;
@@ -67,12 +67,10 @@ SIZE Function::random_function(CODE_CACHE_ADDR cc_curr_addr, ORIGIN_ADDR cc_orig
 	disassemble();
 	// 2.split into bb
 	split_into_basic_block(func_map);
-	// 3.analysis random bb entry situation
-	analyse_random_bb();
-	// 4.random
-	ASSERT(is_already_random_analysis);
+	// 3.random
+	ASSERT(is_already_split_into_bb);
 	vector<RELOCATION_ITEM> relocation;
-	// 4.1 copy random insts
+	// 3.1 copy random insts
 	ASSERT((_random_cc_start==0) && (_random_cc_origin_start==0) && (_random_cc_size==0));
 	SIZE bb_copy_size = 0;
 	_random_cc_start = cc_curr_addr;
@@ -80,17 +78,26 @@ SIZE Function::random_function(CODE_CACHE_ADDR cc_curr_addr, ORIGIN_ADDR cc_orig
 	for(vector<BasicBlock *>::iterator ite = bb_list.begin(); ite!=bb_list.end(); ite++){
 		cc_curr_addr += bb_copy_size;
 		cc_origin_addr += bb_copy_size;
-		//find insts need to be random in the BB
-		(*ite)->random_analysis();
 		//random some insts in BB
 		bb_copy_size = (*ite)->copy_random_insts(cc_curr_addr, cc_origin_addr, relocation);
 		_random_cc_size += bb_copy_size;
 	}
-	// 4.2 relocate the address and finish 
+	// 3.2 relocate the address and finish 
 	for(vector<RELOCATION_ITEM>::iterator iter = relocation.begin(); iter!=relocation.end(); iter++){
-		;
+		RELOCATION_ITEM reloc_info = *iter;
+		if(reloc_info.type==REL8_BB_PTR)
+			ASSERT(0);
+		else if(reloc_info.type==REL32_BB_PTR){
+			ORIGIN_ADDR target_bb_entry = ((BasicBlock*)reloc_info.target_bb_ptr)->get_origin_addr_after_random();
+			INT64 offset = target_bb_entry - reloc_info.origin_base_addr;
+			ASSERT((offset > 0 ? offset : -offset) < 0x7fffffff);
+			*(UINT32*)(reloc_info.relocate_pos) = offset;
+		}else if(reloc_info.type==ABSOLUTE_BB_PTR)
+			ASSERT(0);
+		else
+			ASSERT(0);
 	}
-	// 5 finish random
+	// 4 finish random
 	for(vector<BasicBlock *>::iterator ite = bb_list.begin(); ite!=bb_list.end(); ite++){
 		(*ite)->finish_generate_cc();
 	}
@@ -297,7 +304,7 @@ void Function::split_into_basic_block(MAP_ORIGIN_FUNCTION *func_map)
 	delete [] array;
 	is_already_split_into_bb = true;
 }
-
+#if 0
 typedef enum{
 	EMPTY_RANDOM = 0,
 	FALSE_RANDOM,
@@ -503,3 +510,4 @@ void Function::analyse_random_bb()
 	for(INT32 idx=0; idx<bb_num; idx++)
 		delete [] random_matrix[idx];	
 }
+#endif

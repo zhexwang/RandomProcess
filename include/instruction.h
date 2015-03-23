@@ -51,6 +51,18 @@ public:
 		ASSERT(is_already_disasm);
 		return _dInst.opcode;
 	}
+
+	UINT8 get_operand_type(INT32 operand_idx)
+	{
+		ASSERT(is_already_disasm);
+		return _dInst.ops[operand_idx].type;
+	}
+
+	UINT8 get_reg_operand_index(INT32 operand_idx)
+	{
+		ASSERT(is_already_disasm);
+		return _dInst.ops[0].index;
+	}
 	
 	UINT8 get_inst_code_first_byte()
 	{
