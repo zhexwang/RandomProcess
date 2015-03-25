@@ -5,22 +5,26 @@
 #include "utility.h"
 #include "code_segment.h"
 #include "code_segment_management.h"
+#include "codecache.h"
+#include "stack.h"
 #include <fstream>
 #include <vector>
 #include <iostream>
 using namespace std;
 
+extern ShareStack *global_share_stack ;
+
 class ReadLog
 {
 private:
-	INT32 code_cache_idx;
+	INT32 shm_num;
 	string share_log_name;
 	BOOL share_log_is_init;
 	BOOL profile_log_is_init;
 	string profile_log_name;
 public:
 	ReadLog(const char *share_log, const char *profile_log)
-		: code_cache_idx(-1), share_log_is_init(false), profile_log_is_init(false)
+		: shm_num(-1), share_log_is_init(false), profile_log_is_init(false)
 	{
 		share_log_name = share_log;
 		profile_log_name = profile_log;
@@ -30,24 +34,35 @@ public:
 		//1.create ifstream file
 		ifstream ifs(share_log_name.c_str(), ifstream::in);
 		//2.read log 
-		string code_cache_info;
-		ifs>>code_cache_info>>code_cache_idx;
-		for(INT32 idx=0; idx<=code_cache_idx; idx++){
+		string shm_info;
+		ifs>>shm_info>>shm_num;
+		INT32 map_cc_array[100];
+		CodeCache *cc_array[100];
+		ASSERT(shm_num<=100);
+		for(INT32 idx=0; idx<shm_num; idx++){
 			ORIGIN_ADDR region_start;
 			ORIGIN_ADDR region_end;
 			string shm_name;
 			string code_path;
 			char c;
+			INT32 cc_idx;
 			BOOL isCodeCache;
-			if(idx==code_cache_idx)
-				isCodeCache = true;
-			else
-				isCodeCache = false;
-			ifs>>hex>>region_start>>c>>region_end>>shm_name>>code_path;
-			CodeSegment *cs = new CodeSegment(region_start, region_end-region_start, code_path, shm_name, isCodeCache);
+			BOOL isStack;
+			ifs>>dec>>cc_idx>>hex>>region_start>>c>>region_end>>shm_name>>code_path;
+			isCodeCache = cc_idx==-1 ? true : false;
+			isStack = cc_idx==-2 ? true: false;
+			map_cc_array[idx] = cc_idx;
+			CodeSegment *cs = new CodeSegment(region_start, region_end-region_start, code_path, shm_name, isCodeCache, isStack);
 			code_segment_vec.push_back(cs);
-			if(isCodeCache)
-				code_cache_segment = cs;
+			cc_array[idx] = isCodeCache ? (new CodeCache(*cs)) : NULL;
+			if(isStack)
+				global_share_stack = new ShareStack(*cs);
+		}
+		//3.map cc
+		for(INT32 idx=0; idx<shm_num; idx++){
+			INT32 map_idx = map_cc_array[idx];
+			CodeCache *cc = (map_idx==-1 || map_idx==-2) ? NULL : cc_array[map_idx];
+			code_segment_vec[idx]->map_CC_to_CS(cc);
 		}
 		share_log_is_init = true;
 	}

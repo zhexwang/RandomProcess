@@ -8,43 +8,22 @@ const char * Instruction::type_to_string[] = {"EMPTY","NONE_TYPE", "CND_BRANCH_T
 
 Instruction::Instruction(ORIGIN_ADDR origin_addr, ADDR current_addr, SIZE instruction_max_size)
 	:inst_type(Instruction::EMPTY), _origin_instruction_addr(origin_addr), _current_instruction_addr(current_addr)
-	, is_already_disasm(false), security_size(instruction_max_size), _curr_copy_addr(0)
-	, _origin_copy_addr(0), _inst_copy_size(0)
+	, is_already_disasm(false), security_size(instruction_max_size)
 {
 	;
 }
-/*
-SIZE Instruction::random_call_inst_handle()
-{
-	ASSERT(isCall()&&(_curr_copy_addr!=0)&&(_origin_copy_addr!=0));
-	//jmp to the call inst, the call inst will not be copy
-	//if address gap is within -0x7fffffff ~ 0x7fffffff, use relative jump
-	ORIGIN_ADDR code_start = _curr_copy_addr;
-	INT64 offset = _origin_instruction_addr - _origin_copy_addr - 0x5;
-	if((offset > 0 ? offset : -offset) < 0x7fffffff){
-		JMP_REL32(offset, code_start);
-	}else{
-		INT32 high32 = _origin_instruction_addr>>32;
-		INT32 low32 = _origin_instruction_addr;
-		PUSH_IMM32(low32, code_start);
-		MOV_IMM32_mRSPHIGH(high32, code_start);
-		RET(code_start);
-	}
-	return code_start - _curr_copy_addr;
-}
-*/
-SIZE Instruction::copy_instruction(CODE_CACHE_ADDR curr_copy_addr, ORIGIN_ADDR origin_copy_addr)
+
+SIZE Instruction::copy_instruction(CODE_CACHE_ADDR curr_copy_addr, ORIGIN_ADDR origin_copy_addr, 
+	multimap<ORIGIN_ADDR, ORIGIN_ADDR> &map_inst)
 {
 	ASSERT(is_already_disasm && (inst_type==NONE_TYPE || inst_type==RET_TYPE || inst_type==INDIRECT_CALL_TYPE));
-	_curr_copy_addr = curr_copy_addr;
-	_origin_copy_addr = origin_copy_addr;
 
 	if(_dInst.flags&FLAG_RIP_RELATIVE){
 		ASSERTM(_dInst.ops[0].type==O_SMEM || _dInst.ops[0].type==O_MEM 
 			|| _dInst.ops[1].type==O_SMEM || _dInst.ops[1].type==O_MEM, "unknown operand in RIP-operand!\n");
-		INT64 offset_64 = _origin_copy_addr - _origin_instruction_addr - _dInst.disp;
+		INT64 offset_64 = origin_copy_addr - _origin_instruction_addr - _dInst.disp;
 		ASSERT((offset_64 > 0 ? offset_64 : -offset_64) < 0x7fffffff);
-		offset_64 = _origin_copy_addr - _origin_instruction_addr;
+		offset_64 = origin_copy_addr - _origin_instruction_addr;
 		ASSERT((offset_64 > 0 ? offset_64 : -offset_64) < 0x7fffffff);
 		INT32 offset = (INT32)offset_64;
 		//copy inst
@@ -69,9 +48,10 @@ SIZE Instruction::copy_instruction(CODE_CACHE_ADDR curr_copy_addr, ORIGIN_ADDR o
 		*record_pos -=  offset;
 	}else //the instruction can be copy directly
 		get_inst_code((UINT8 *)curr_copy_addr, _dInst.size);
-
-	_inst_copy_size = _dInst.size;
-	return _inst_copy_size;
+	//add origin_function_inst-->origin_cc_inst 
+	map_inst.insert(make_pair(_origin_instruction_addr, origin_copy_addr));
+	
+	return _dInst.size;	
 }
 
 SIZE Instruction::disassemable()

@@ -5,17 +5,19 @@
 #include "function.h"
 #include "readelf.h"
 #include "map_function.h"
+#include "stack.h"
 #include <iostream>
 using namespace std;
 
-CodeCache *global_code_cache = NULL;
+ShareStack *global_share_stack = NULL;
+multimap<ORIGIN_ADDR, ORIGIN_ADDR> map_inst;
 CODE_SEG_MAP_ORIGIN_FUNCTION CSfunctionMapOriginList;
 CODE_SEG_MAP_FUNCTION CSfunctionMapList;
 
 void readelf_to_find_all_functions()
 {
 	for(vector<CodeSegment*>::iterator it = code_segment_vec.begin(); it<code_segment_vec.end(); it++){
-		if(!(*it)->is_code_cache){
+		if(!(*it)->is_code_cache && !(*it)->is_stack){
 			//map origin
 			MAP_ORIGIN_FUNCTION *map_origin_function = new MAP_ORIGIN_FUNCTION();
 			CSfunctionMapOriginList.insert(CODE_SEG_MAP_ORIGIN_FUNCTION_PAIR(*it, map_origin_function));
@@ -24,7 +26,8 @@ void readelf_to_find_all_functions()
 			CSfunctionMapList.insert(CODE_SEG_MAP_FUNCTION_PAIR(*it, map_function));
 			//read elf
 			ReadElf *read_elf = new ReadElf(*it);
-			read_elf->scan_and_record_function(map_function, map_origin_function);
+			CodeCache *code_cache = (*it)->code_cache;
+			read_elf->scan_and_record_function(map_function, map_origin_function, code_cache);
 			delete read_elf;
 		}
 	}
@@ -36,20 +39,59 @@ void random_all_functions()
 	for(CODE_SEG_MAP_ORIGIN_FUNCTION_ITERATOR it = CSfunctionMapOriginList.begin(); it!=CSfunctionMapOriginList.end(); it++){
 		if(!it->first->isSO){
 			for(MAP_ORIGIN_FUNCTION_ITERATOR iter = it->second->begin(); iter!=it->second->end(); iter++){
-				CODE_CACHE_ADDR curr_cc_ptr = 0;
-				ORIGIN_ADDR origin_cc_ptr = 0;
-				global_code_cache->getCCCurrent(curr_cc_ptr, origin_cc_ptr);
-				SIZE size = iter->second->random_function(curr_cc_ptr, origin_cc_ptr, it->second);
-				global_code_cache->updateCC(size);
-				
-				//iter->second->dump_function_origin();
-				iter->second->dump_bb_origin();
-				//global_code_cache->disassemble("", curr_cc_ptr, curr_cc_ptr+size);				
+				Function *func = iter->second;
+				func->random_function(it->second);
+				func->get_map_origin_cc_info(map_inst);
+				//func->dump_function_origin();
+				//func->dump_bb_origin();			
 			}
 		}
 	}
 	return ;
 }
+
+void intercept_all_functions()
+{
+	for(CODE_SEG_MAP_ORIGIN_FUNCTION_ITERATOR it = CSfunctionMapOriginList.begin(); it!=CSfunctionMapOriginList.end(); it++){
+		if(!it->first->isSO){
+			for(MAP_ORIGIN_FUNCTION_ITERATOR iter = it->second->begin(); iter!=it->second->end(); iter++){
+				Function *func = iter->second;
+				if(func->get_function_name() == "main")
+					func->intercept_to_random_function();
+			}
+		}
+	}
+	return ;
+}
+
+void erase_all_functions()
+{
+	for(CODE_SEG_MAP_ORIGIN_FUNCTION_ITERATOR it = CSfunctionMapOriginList.begin(); it!=CSfunctionMapOriginList.end(); it++){
+		if(!it->first->isSO){
+			for(MAP_ORIGIN_FUNCTION_ITERATOR iter = it->second->begin(); iter!=it->second->end(); iter++){
+				Function *func = iter->second;
+				if(func->get_function_name() == "main")
+					func->erase_function();			
+			}
+		}
+	}
+	return ;
+}
+
+void flush()
+{
+	for(CODE_SEG_MAP_ORIGIN_FUNCTION_ITERATOR it = CSfunctionMapOriginList.begin(); it!=CSfunctionMapOriginList.end(); it++){
+		CodeCache *code_cache = it->first->code_cache;
+		code_cache->flush();
+		map_inst.clear();
+		for(MAP_ORIGIN_FUNCTION_ITERATOR iter = it->second->begin(); iter!=it->second->end(); iter++){
+			Function *func = iter->second;
+			func->flush_function_cc();
+		}
+	}
+	return ;
+}
+
 
 int main(int argc, const char *argv[])
 {
@@ -63,11 +105,25 @@ int main(int argc, const char *argv[])
 	// 3.init log
 	log.init_share_log();
 	log.init_profile_log();//read indirect inst and target
-	// 4.init code cache
-	global_code_cache = init_code_cache();
-	//5.read elf to find function
+	dump_code_segment();
+	// 4.read elf to find function
 	readelf_to_find_all_functions();
-	//6.random
-	random_all_functions();
+	// loop for random
+	while(1){
+		// 5.flush
+		flush();
+		// 6.random
+		random_all_functions();
+		// 7.send signal to stop the process
+		
+		// 8.intercept
+		intercept_all_functions();
+		// 9.erase
+		erase_all_functions();
+		// 10.relocate
+		ASSERT(global_share_stack);
+		global_share_stack->relocate_return_address(map_inst);		
+		global_share_stack->relocate_current_pc(map_inst);
+	}
 	return 0;
 }

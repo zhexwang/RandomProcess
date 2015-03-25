@@ -28,9 +28,6 @@ private:
 	_DecodedInst _decodedInst;
 	BOOL is_already_disasm;
 	SIZE security_size;
-	CODE_CACHE_ADDR _curr_copy_addr;
-	ORIGIN_ADDR _origin_copy_addr;
-	SIZE _inst_copy_size;
 public:
 	Instruction(ORIGIN_ADDR origin_addr, ADDR current_addr, SIZE instruction_max_size);
 	~Instruction(){;}
@@ -173,7 +170,7 @@ public:
 		return _current_instruction_addr + _dInst.size;
 	}
 	SIZE disassemable();
-	SIZE copy_instruction(CODE_CACHE_ADDR curr_copy_addr, ORIGIN_ADDR origin_copy_addr);
+	SIZE copy_instruction(CODE_CACHE_ADDR curr_copy_addr, ORIGIN_ADDR origin_copy_addr, multimap<ORIGIN_ADDR, ORIGIN_ADDR> &map_inst);
 	void dump();
 private:
 	void init_instruction_type();

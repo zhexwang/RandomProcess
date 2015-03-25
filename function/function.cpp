@@ -1,9 +1,10 @@
 #include "function.h"
+#include "inst_macro.h"
 
-
-Function::Function(CodeSegment *code_segment, string name, ORIGIN_ADDR origin_function_base, ORIGIN_SIZE origin_function_size)
+Function::Function(CodeSegment *code_segment, string name, ORIGIN_ADDR origin_function_base, ORIGIN_SIZE origin_function_size, CodeCache *cc)
 	:_code_segment(code_segment), _function_name(name), _origin_function_base(origin_function_base), _origin_function_size(origin_function_size)
-	, _random_cc_start(0), _random_cc_origin_start(0), _random_cc_size(0), is_already_disasm(false), is_already_split_into_bb(false)
+	, _random_cc_start(0), _random_cc_origin_start(0), _random_cc_size(0), code_cache(cc), is_already_disasm(false), is_already_split_into_bb(false), 
+	is_already_finish_random(false) , is_already_finish_intercept(false), is_already_finish_erase(false)
 {
 	_function_base = code_segment->convert_origin_process_addr_to_this(_origin_function_base);
 	_function_size = (SIZE)_origin_function_size;
@@ -15,7 +16,7 @@ void Function::dump_function_origin()
 {
 	PRINT("[0x%lx-0x%lx]",  _origin_function_base, _origin_function_size+_origin_function_base);
 	INFO("%s",_function_name.c_str());
-	PRINT("(Path:%s)\n", _code_segment->file_path.c_str());
+	PRINT("(Path:%s)[Random:0x%lx-0x%lx]\n", _code_segment->file_path.c_str(), _random_cc_origin_start, _random_cc_origin_start+_random_cc_size);
 	if(is_already_disasm){
 		for(vector<Instruction*>::iterator iter = _origin_function_instructions.begin(); iter!=_origin_function_instructions.end(); iter++){
 			(*iter)->dump();
@@ -27,7 +28,7 @@ void Function::dump_bb_origin()
 {
 	PRINT("[0x%lx-0x%lx]",  _origin_function_base, _origin_function_size+_origin_function_base);
 	INFO("%s",_function_name.c_str());
-	PRINT("(Path:%s)\n", _code_segment->file_path.c_str());
+	PRINT("(Path:%s)[Random:0x%lx-0x%lx]\n", _code_segment->file_path.c_str(), _random_cc_origin_start, _random_cc_origin_start+_random_cc_size);
 	if(is_already_split_into_bb){
 		for(vector<BasicBlock *>::iterator ite = bb_list.begin(); ite!=bb_list.end(); ite++){
 			(*ite)->dump();
@@ -56,13 +57,35 @@ void Function::disassemble()
 	is_already_disasm = true;
 }
 
-void Function::point_to_random_function()
+void Function::intercept_to_random_function()
 {
-	NOT_IMPLEMENTED(wz);
+	ASSERT(is_already_finish_random && _random_cc_origin_start!=0 && _random_cc_size!=0 && _random_cc_start!=0);
+	INT64 offset = _random_cc_origin_start - _origin_function_base - 0x5;
+	ASSERT((offset > 0 ? offset : -offset) < 0x7fffffff);
+	ASSERT(_function_size>=5);
+	ADDR ptr = _function_base;
+	JMP_REL32(offset,ptr);
+	is_already_finish_intercept = true;
 }
 
-SIZE Function::random_function(CODE_CACHE_ADDR cc_curr_addr, ORIGIN_ADDR cc_origin_addr, MAP_ORIGIN_FUNCTION *func_map)
+void Function::erase_function()
 {
+	ASSERT(is_already_finish_intercept);
+	if(is_already_finish_erase)
+		return ;
+	ADDR erase_start = _function_base+5;
+	ADDR erase_end = _function_base+_function_size;
+	for(ADDR erase_item = erase_start; erase_item<=erase_end; erase_item++)
+		INV_INS_1(erase_item);
+	is_already_finish_erase = true;
+}
+
+void Function::random_function(MAP_ORIGIN_FUNCTION *func_map)
+{
+	//get cc info
+	CODE_CACHE_ADDR cc_curr_addr = 0;
+	ORIGIN_ADDR cc_origin_addr = 0;
+	code_cache->getCCCurrent(cc_curr_addr, cc_origin_addr);
 	// 1.disasm
 	disassemble();
 	// 2.split into bb
@@ -79,7 +102,7 @@ SIZE Function::random_function(CODE_CACHE_ADDR cc_curr_addr, ORIGIN_ADDR cc_orig
 		cc_curr_addr += bb_copy_size;
 		cc_origin_addr += bb_copy_size;
 		//random some insts in BB
-		bb_copy_size = (*ite)->copy_random_insts(cc_curr_addr, cc_origin_addr, relocation);
+		bb_copy_size = (*ite)->copy_random_insts(cc_curr_addr, cc_origin_addr, relocation, _map_origin_addr_to_cc_addr);
 		_random_cc_size += bb_copy_size;
 	}
 	// 3.2 relocate the address and finish 
@@ -101,20 +124,26 @@ SIZE Function::random_function(CODE_CACHE_ADDR cc_curr_addr, ORIGIN_ADDR cc_orig
 	for(vector<BasicBlock *>::iterator ite = bb_list.begin(); ite!=bb_list.end(); ite++){
 		(*ite)->finish_generate_cc();
 	}
-	return _random_cc_size;
+	//update cc
+	code_cache->updateCC(_random_cc_size);
+	is_already_finish_random = true;
+	
+	return ;
 }
 
 void Function::flush_function_cc()
 {
-	//recover the 	cc used
-	global_code_cache->freeCC(_random_cc_start, _random_cc_origin_start, _random_cc_size);
 	//flush record in function
 	_random_cc_start = 0;
 	_random_cc_size = 0;
 	_random_cc_origin_start = 0;
+	is_already_finish_random = false;
+	is_already_finish_intercept = false;
 	//flush record in bb
 	for(vector<BasicBlock*>::iterator iter = bb_list.begin(); iter!=bb_list.end(); iter++)
 		(*iter)->flush_generate_cc();
+	//empty map
+	_map_origin_addr_to_cc_addr.clear();
 }
 
 Instruction *Function::get_instruction_by_addr(ORIGIN_ADDR origin_addr)
@@ -274,7 +303,7 @@ void Function::split_into_basic_block(MAP_ORIGIN_FUNCTION *func_map)
 	for(SIZE i=0; i<inst_sum; i++){
 		Item *item = array+i;
 		if(item->isBBEntry){
-			curr_bb = new BasicBlock();
+			curr_bb = new BasicBlock(code_cache);
 			bb_list.push_back(curr_bb);
 			first_inst_in_bb = item->inst;
 		}

@@ -13,6 +13,8 @@
 #include <vector>
 using namespace std;
 
+class CodeCache;
+
 class CodeSegment
 {
 public:
@@ -22,19 +24,35 @@ public:
 	string shm_name;
 	void *native_map_code_start;
 	BOOL is_code_cache;
+	BOOL is_stack;
 	BOOL isSO;
 	INT32 shm_fd;
+	CodeCache *code_cache;
 	//profile data
 	multimap<ORIGIN_ADDR, ORIGIN_ADDR> indirect_inst_map;
 	typedef multimap<ORIGIN_ADDR, ORIGIN_ADDR>::iterator INDIRECT_MAP_ITERATOR;
 public:
-	CodeSegment(ORIGIN_ADDR regionStart, SIZE regionSize, string codePath, string shmName, BOOL isCodeCache)
-		:code_start(regionStart), code_size(regionSize), file_path(codePath), shm_name(shmName),is_code_cache(isCodeCache)
+	CodeSegment(ORIGIN_ADDR regionStart, SIZE regionSize, string codePath, string shmName, BOOL isCodeCache, BOOL isStack)
+		:code_start(regionStart), code_size(regionSize), file_path(codePath), shm_name(shmName),is_code_cache(isCodeCache), is_stack(isStack)
+		, code_cache(NULL)
 	{
 		open_shm();
-		isSO = is_so_file();
-	}
 
+		if(is_code_cache || is_stack)
+			isSO = false;
+		else
+			isSO = is_so_file();
+
+	}
+	
+	void map_CC_to_CS(CodeCache *cc)
+	{
+		if(is_code_cache || is_stack){
+			ASSERT(!cc);
+		}else
+			code_cache = cc;
+	}
+	
 	void open_shm()
 	{
 		//1. open shm

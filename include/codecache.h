@@ -52,7 +52,7 @@ public:
 		origin_cc_ptr = origin_process_code_cache_ptr;
 	}
 
-	void emptyCC()
+	void flush()
 	{
 		current_code_cache_ptr = 0;
 		origin_process_code_cache_ptr = 0;

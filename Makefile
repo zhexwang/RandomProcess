@@ -2,7 +2,7 @@ SHELL := /bin/bash
 BIN := random
 
 BUILD_DIR := build
-SRC_DIR := main memory code_segment codecache readelf function instruction basicblock
+SRC_DIR := main memory code_segment codecache readelf function instruction basicblock share_stack
 DISASM_DIR := distorm3
 DISASM_AR := distorm3.a
 

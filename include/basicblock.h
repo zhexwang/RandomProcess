@@ -3,6 +3,7 @@
 
 #include "instruction.h"
 #include "relocation.h"
+#include "codecache.h"
 #include <vector>
 using namespace std;
 
@@ -23,9 +24,10 @@ private:
 	//used for random
 	BOOL is_finish_generate_cc;
 	BOOL _is_self_loop;
+	CodeCache *code_cache;
 public:
-	BasicBlock():fallthrough_bb(NULL), _curr_copy_addr(0), _origin_copy_addr(0), _generate_cc_size(0)
-		, is_finish_generate_cc(false), _is_self_loop(false)
+	BasicBlock(CodeCache *cc):fallthrough_bb(NULL), _curr_copy_addr(0), _origin_copy_addr(0), _generate_cc_size(0)
+		, is_finish_generate_cc(false), _is_self_loop(false), code_cache(cc)
 	{
 		;		
 	}
@@ -133,9 +135,9 @@ public:
 	}
 	
 	SIZE random_unordinary_inst(Instruction *inst, CODE_CACHE_ADDR curr_target_addr, 
-		ORIGIN_ADDR origin_target_addr, vector<RELOCATION_ITEM> &relocation);
+		ORIGIN_ADDR origin_target_addr, vector<RELOCATION_ITEM> &relocation, multimap<ORIGIN_ADDR, ORIGIN_ADDR> &map_inst);
 	SIZE copy_random_insts(CODE_CACHE_ADDR curr_target_addr, ORIGIN_ADDR origin_target_addr, 
-		vector<RELOCATION_ITEM> &relocation);
+		vector<RELOCATION_ITEM> &relocation, multimap<ORIGIN_ADDR, ORIGIN_ADDR> &map_inst);
 	BB_INS_ITER find_first_least_size_instruction(SIZE least_size);
 	void dump();
 };
