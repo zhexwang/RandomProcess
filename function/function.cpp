@@ -95,6 +95,8 @@ void Function::random_function(MAP_ORIGIN_FUNCTION *func_map)
 	vector<RELOCATION_ITEM> relocation;
 	// 3.1 copy random insts
 	ASSERT((_random_cc_start==0) && (_random_cc_origin_start==0) && (_random_cc_size==0));
+	ASSERT(_map_cc_to_origin.empty() && _map_origin_to_cc.empty());
+	
 	SIZE bb_copy_size = 0;
 	_random_cc_start = cc_curr_addr;
 	_random_cc_origin_start = cc_origin_addr;
@@ -102,7 +104,7 @@ void Function::random_function(MAP_ORIGIN_FUNCTION *func_map)
 		cc_curr_addr += bb_copy_size;
 		cc_origin_addr += bb_copy_size;
 		//random some insts in BB
-		bb_copy_size = (*ite)->copy_random_insts(cc_curr_addr, cc_origin_addr, relocation, _map_origin_addr_to_cc_addr);
+		bb_copy_size = (*ite)->copy_random_insts(cc_curr_addr, cc_origin_addr, relocation, _map_origin_to_cc, _map_cc_to_origin);
 		_random_cc_size += bb_copy_size;
 	}
 	// 3.2 relocate the address and finish 
@@ -141,9 +143,10 @@ void Function::flush_function_cc()
 	is_already_finish_intercept = false;
 	//flush record in bb
 	for(vector<BasicBlock*>::iterator iter = bb_list.begin(); iter!=bb_list.end(); iter++)
-		(*iter)->flush_generate_cc();
+		(*iter)->flush();
 	//empty map
-	_map_origin_addr_to_cc_addr.clear();
+	_map_origin_to_cc.clear();
+	_map_cc_to_origin.clear();
 }
 
 Instruction *Function::get_instruction_by_addr(ORIGIN_ADDR origin_addr)

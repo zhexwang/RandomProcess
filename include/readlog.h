@@ -12,7 +12,8 @@
 #include <iostream>
 using namespace std;
 
-extern ShareStack *global_share_stack ;
+extern ShareStack *main_share_stack ;
+extern CodeCacheManagement *cc_management;
 
 class ReadLog
 {
@@ -54,9 +55,18 @@ public:
 			map_cc_array[idx] = cc_idx;
 			CodeSegment *cs = new CodeSegment(region_start, region_end-region_start, code_path, shm_name, isCodeCache, isStack);
 			code_segment_vec.push_back(cs);
-			cc_array[idx] = isCodeCache ? (new CodeCache(*cs)) : NULL;
+			//code cache record
+			if(isCodeCache){
+				CodeCache *cc = new CodeCache(*cs);
+				if(!cc_management)
+					cc_management = new CodeCacheManagement();
+				cc_management->insert(cc);
+				cc_array[idx] = cc;
+			}else
+				cc_array[idx] = NULL;
+			//stack record
 			if(isStack)
-				global_share_stack = new ShareStack(*cs);
+				main_share_stack = new ShareStack(*cs);
 		}
 		//3.map cc
 		for(INT32 idx=0; idx<shm_num; idx++){

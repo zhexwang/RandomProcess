@@ -9,59 +9,92 @@
 class CodeCache
 {
 private:
-	CODE_CACHE_ADDR code_cache_start;
-	CODE_CACHE_ADDR code_cache_end;
-	CODE_CACHE_ADDR current_code_cache_ptr;
-	ORIGIN_ADDR origin_process_code_cache_start;
-	ORIGIN_ADDR origin_process_code_cache_end;
-	ORIGIN_ADDR origin_process_code_cache_ptr;
+	UINT8 curr_idx;
+	CODE_CACHE_ADDR code_cache_start[2];
+	CODE_CACHE_ADDR code_cache_end[2];
+	CODE_CACHE_ADDR current_code_cache_ptr[2];
+	ORIGIN_ADDR origin_process_code_cache_start[2];
+	ORIGIN_ADDR origin_process_code_cache_end[2];
+	ORIGIN_ADDR origin_process_code_cache_ptr[2];
 public:
 	CodeCache(CodeSegment &codeSegment)
 	{
 		ASSERT(codeSegment.is_code_cache);
-		code_cache_start = reinterpret_cast<ADDR>(codeSegment.native_map_code_start);
-		code_cache_end = code_cache_start+codeSegment.code_size;
-		current_code_cache_ptr = code_cache_start;
-		origin_process_code_cache_start = codeSegment.code_start;
-		origin_process_code_cache_end = origin_process_code_cache_start+codeSegment.code_size;
-		origin_process_code_cache_ptr = origin_process_code_cache_start;
+		curr_idx = 1;
+		
+		code_cache_start[0] = reinterpret_cast<ADDR>(codeSegment.native_map_code_start);
+		code_cache_end[0] = code_cache_start[0]+codeSegment.code_size/2;
+		current_code_cache_ptr[0] = code_cache_start[0];
+		
+		code_cache_start[1] = code_cache_end[0];
+		code_cache_end[1] = code_cache_start[1]+codeSegment.code_size/2;
+		current_code_cache_ptr[1] = code_cache_start[1];
+		
+		origin_process_code_cache_start[0] = codeSegment.code_start;
+		origin_process_code_cache_end[0] = origin_process_code_cache_start[0]+codeSegment.code_size/2;
+		origin_process_code_cache_ptr[0] = origin_process_code_cache_start[0];
+
+		origin_process_code_cache_start[1] = origin_process_code_cache_end[0];
+		origin_process_code_cache_end[1] = origin_process_code_cache_start[1]+codeSegment.code_size/2;
+		origin_process_code_cache_ptr[1] = origin_process_code_cache_start[1];
 	}
 
 	ORIGIN_ADDR get_origin_process_addr(CODE_CACHE_ADDR code_cache_addr)
 	{
-		ASSERT((code_cache_addr>=code_cache_start)&&(code_cache_addr<=code_cache_end));
-		return code_cache_addr - code_cache_start + origin_process_code_cache_start;
+		ASSERT((code_cache_addr>=code_cache_start[curr_idx])&&(code_cache_addr<=code_cache_end[curr_idx]));
+		return code_cache_addr - code_cache_start[curr_idx] + origin_process_code_cache_start[curr_idx];
 	}
 
 	void freeCC(CODE_CACHE_ADDR curr_addr, ORIGIN_ADDR origin_addr, SIZE cc_size)
 	{
-		ASSERT((curr_addr-code_cache_start+origin_process_code_cache_start)==curr_addr);
+		ASSERT((curr_addr-code_cache_start[curr_idx]+origin_process_code_cache_start[curr_idx])==curr_addr);
 	}
 	
 	void updateCC(SIZE used_size)
 	{
-		current_code_cache_ptr += used_size;
-		origin_process_code_cache_ptr += used_size;
-		ASSERT((current_code_cache_ptr<=code_cache_end) && (origin_process_code_cache_ptr<=origin_process_code_cache_end));
+		current_code_cache_ptr[curr_idx] += used_size;
+		origin_process_code_cache_ptr[curr_idx] += used_size;
+		ASSERT((current_code_cache_ptr[curr_idx]<=code_cache_end[curr_idx]) && \
+			(origin_process_code_cache_ptr[curr_idx]<=origin_process_code_cache_end[curr_idx]));
 	}
 
 	void getCCCurrent(CODE_CACHE_ADDR &curr_cc_ptr, ORIGIN_ADDR &origin_cc_ptr)
 	{
-		ASSERT((current_code_cache_ptr<=code_cache_end) && (origin_process_code_cache_ptr<=origin_process_code_cache_end));
-		curr_cc_ptr = current_code_cache_ptr;
-		origin_cc_ptr = origin_process_code_cache_ptr;
+		ASSERT((current_code_cache_ptr[curr_idx]<=code_cache_end[curr_idx]) && \
+			(origin_process_code_cache_ptr[curr_idx]<=origin_process_code_cache_end[curr_idx]));
+		curr_cc_ptr = current_code_cache_ptr[curr_idx];
+		origin_cc_ptr = origin_process_code_cache_ptr[curr_idx];
 	}
 
 	void flush()
 	{
-		current_code_cache_ptr = 0;
-		origin_process_code_cache_ptr = 0;
+		current_code_cache_ptr[0] = 0;
+		origin_process_code_cache_ptr[0] = 0;
+		current_code_cache_ptr[1] = 0;
+		origin_process_code_cache_ptr[1] = 0;
+		curr_idx = curr_idx==0 ? 1 : 0;
+	}
+
+	BOOL isInCC(ORIGIN_ADDR origin_addr)
+	{
+		return ((origin_addr>=origin_process_code_cache_start[0])&&(origin_addr<=origin_process_code_cache_end[1]));
+	}
+	
+	BOOL isInOldCC(ORIGIN_ADDR origin_addr)
+	{
+		UINT8 old_idx = curr_idx==0 ? 1 : 0;
+		return (origin_addr>=origin_process_code_cache_start[old_idx]) && (origin_addr<origin_process_code_cache_end[old_idx]);
+	}
+
+	BOOL isInCurrentCC(ORIGIN_ADDR origin_addr)
+	{
+		return (origin_addr>=origin_process_code_cache_start[curr_idx]) && (origin_addr<origin_process_code_cache_end[curr_idx]);
 	}
 	
 	void disassemble(const char prev_info[], CODE_CACHE_ADDR start, CODE_CACHE_ADDR end)
 	{
-		ASSERT(end<=current_code_cache_ptr);
-		_OffsetType origin_start = start-code_cache_start+origin_process_code_cache_start;
+		ASSERT(end<=current_code_cache_ptr[curr_idx]);
+		_OffsetType origin_start = start-code_cache_start[curr_idx]+origin_process_code_cache_start[curr_idx];
 		//_DecodeResult res;
 		_DecodedInst  *disassembled = new _DecodedInst[end-start];
 		UINT32 decodedInstsCount = 0;
@@ -74,6 +107,40 @@ public:
 	}
 };
 
-extern CodeCache *global_code_cache;
+class CodeCacheManagement
+{
+private:
+	vector<CodeCache*> cc_vec;
+public:
+	CodeCacheManagement(){;}
+	void insert(CodeCache *cc)
+	{
+		cc_vec.push_back(cc);
+	}
+	BOOL is_in_old_cc(ORIGIN_ADDR origin_inst_addr)
+	{
+		for(vector<CodeCache*>::iterator iter = cc_vec.begin(); iter!=cc_vec.end(); iter++){
+			if((*iter)->isInOldCC(origin_inst_addr))
+				return true;
+		}
+		return false;
+	}
+	BOOL is_in_curr_cc(ORIGIN_ADDR origin_inst_addr)
+	{
+		for(vector<CodeCache*>::iterator iter = cc_vec.begin(); iter!=cc_vec.end(); iter++){
+			if((*iter)->isInCurrentCC(origin_inst_addr))
+				return true;
+		}
+		return false;
+	}
+	BOOL is_in_cc(ORIGIN_ADDR origin_inst_addr)
+	{
+		for(vector<CodeCache*>::iterator iter = cc_vec.begin(); iter!=cc_vec.end(); iter++){
+			if((*iter)->isInCC(origin_inst_addr))
+				return true;
+		}
+		return false;
+	}
+};
 
 #endif

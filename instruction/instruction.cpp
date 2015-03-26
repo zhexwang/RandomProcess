@@ -14,7 +14,7 @@ Instruction::Instruction(ORIGIN_ADDR origin_addr, ADDR current_addr, SIZE instru
 }
 
 SIZE Instruction::copy_instruction(CODE_CACHE_ADDR curr_copy_addr, ORIGIN_ADDR origin_copy_addr, 
-	multimap<ORIGIN_ADDR, ORIGIN_ADDR> &map_inst)
+	multimap<ORIGIN_ADDR, ORIGIN_ADDR> &map_origin_to_cc, map<ORIGIN_ADDR, ORIGIN_ADDR> &map_cc_to_origin)
 {
 	ASSERT(is_already_disasm && (inst_type==NONE_TYPE || inst_type==RET_TYPE || inst_type==INDIRECT_CALL_TYPE));
 
@@ -48,8 +48,9 @@ SIZE Instruction::copy_instruction(CODE_CACHE_ADDR curr_copy_addr, ORIGIN_ADDR o
 		*record_pos -=  offset;
 	}else //the instruction can be copy directly
 		get_inst_code((UINT8 *)curr_copy_addr, _dInst.size);
-	//add origin_function_inst-->origin_cc_inst 
-	map_inst.insert(make_pair(_origin_instruction_addr, origin_copy_addr));
+	//add origin_function_inst-->origin_cc_inst and origin_cc -->origin_inst
+	map_origin_to_cc.insert(make_pair(_origin_instruction_addr, origin_copy_addr));
+	map_cc_to_origin.insert(make_pair(origin_copy_addr, _origin_instruction_addr));
 	
 	return _dInst.size;	
 }

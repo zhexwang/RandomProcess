@@ -170,7 +170,8 @@ public:
 		return _current_instruction_addr + _dInst.size;
 	}
 	SIZE disassemable();
-	SIZE copy_instruction(CODE_CACHE_ADDR curr_copy_addr, ORIGIN_ADDR origin_copy_addr, multimap<ORIGIN_ADDR, ORIGIN_ADDR> &map_inst);
+	SIZE copy_instruction(CODE_CACHE_ADDR curr_copy_addr, ORIGIN_ADDR origin_copy_addr, 
+		multimap<ORIGIN_ADDR, ORIGIN_ADDR> &map_origin_to_cc, map<ORIGIN_ADDR, ORIGIN_ADDR> &map_cc_to_origin);
 	void dump();
 private:
 	void init_instruction_type();

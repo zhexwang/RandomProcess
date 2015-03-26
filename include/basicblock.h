@@ -125,19 +125,19 @@ public:
 		ASSERT(!is_finish_generate_cc);
 		is_finish_generate_cc = true;
 	}
-	void flush_generate_cc()
+	void flush()
 	{
-		ASSERT(is_finish_generate_cc);
 		_curr_copy_addr = 0;
 		_origin_copy_addr = 0;
 		_generate_cc_size = 0;
 		is_finish_generate_cc = false;
 	}
 	
-	SIZE random_unordinary_inst(Instruction *inst, CODE_CACHE_ADDR curr_target_addr, 
-		ORIGIN_ADDR origin_target_addr, vector<RELOCATION_ITEM> &relocation, multimap<ORIGIN_ADDR, ORIGIN_ADDR> &map_inst);
-	SIZE copy_random_insts(CODE_CACHE_ADDR curr_target_addr, ORIGIN_ADDR origin_target_addr, 
-		vector<RELOCATION_ITEM> &relocation, multimap<ORIGIN_ADDR, ORIGIN_ADDR> &map_inst);
+	SIZE random_unordinary_inst(Instruction *inst, CODE_CACHE_ADDR curr_target_addr, ORIGIN_ADDR origin_target_addr, 
+		vector<RELOCATION_ITEM> &relocation, multimap<ORIGIN_ADDR, ORIGIN_ADDR> &map_origin_to_cc, 
+		map<ORIGIN_ADDR, ORIGIN_ADDR> &map_cc_to_origin);
+	SIZE copy_random_insts(CODE_CACHE_ADDR curr_target_addr, ORIGIN_ADDR origin_target_addr, vector<RELOCATION_ITEM> &relocation, 
+		multimap<ORIGIN_ADDR, ORIGIN_ADDR> &map_origin_to_cc, map<ORIGIN_ADDR, ORIGIN_ADDR> &map_cc_to_origin);
 	BB_INS_ITER find_first_least_size_instruction(SIZE least_size);
 	void dump();
 };

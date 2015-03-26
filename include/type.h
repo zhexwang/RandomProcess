@@ -12,7 +12,7 @@ typedef unsigned short UINT16;
 typedef int INT32;
 typedef unsigned int UINT32;
 typedef long long INT64;
-typedef unsigned long long UIN64;
+typedef unsigned long long UINT64;
 typedef unsigned long ADDR;
 typedef unsigned long ORIGIN_ADDR;
 typedef unsigned long CODE_CACHE_ADDR;

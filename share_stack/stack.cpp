@@ -1,11 +1,3 @@
-#include "stack.h"
-
-void ShareStack::relocate_return_address(multimap<ORIGIN_ADDR, ORIGIN_ADDR> &map_inst_info)
-{
-	;
-}
-
-void ShareStack::relocate_current_pc(multimap<ORIGIN_ADDR, ORIGIN_ADDR> &map_inst_info)
-{
-	;
-}
+#include "stack.h"#include "codecache.h"#include <unistd.h>extern CodeCacheManagement *cc_management;void ShareStack::relocate_return_address(MapInst *map_inst){	ASSERT(origin_rbp && cc_management);	UINT64 rbp = *origin_rbp;	//unwind stack	while(rbp!=0){		//get return address		ORIGIN_ADDR return_address = *((UINT64*)rbp + 1);		//update return address		ORIGIN_ADDR new_ret_addr = map_inst->get_new_addr_from_old(return_address, cc_management->is_in_cc(return_address));		*((UINT64*)rbp + 1) = new_ret_addr;		//prev rbp		rbp = *(UINT64 *)rbp;	}}
+void ShareStack::relocate_current_pc(MapInst *map_inst){
+	ASSERT(origin_uc && cc_management);	ORIGIN_ADDR pc = origin_uc->uc_mcontext.gregs[REG_RIP];	ORIGIN_ADDR new_pc = map_inst->get_new_addr_from_old(pc, cc_management->is_in_cc(pc));	//update old pc	origin_uc->uc_mcontext.gregs[REG_RIP] = new_pc;}

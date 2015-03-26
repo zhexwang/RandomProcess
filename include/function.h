@@ -32,15 +32,16 @@ private:
 	CodeCache *code_cache;
 	//instruction list
 	vector<Instruction*> _origin_function_instructions;
-	vector<Instruction*> _random_function_instructions;
 	map<ORIGIN_ADDR, Instruction*> _map_origin_addr_to_inst;
 	BOOL is_already_disasm;
 	BOOL is_already_split_into_bb;
+	vector<BasicBlock*> bb_list;
+	//random
 	BOOL is_already_finish_random;
 	BOOL is_already_finish_intercept;
 	BOOL is_already_finish_erase;
-	multimap<ORIGIN_ADDR, ORIGIN_ADDR> _map_origin_addr_to_cc_addr;
-	vector<BasicBlock*> bb_list;
+	multimap<ORIGIN_ADDR, ORIGIN_ADDR> _map_origin_to_cc;
+	map<ORIGIN_ADDR, ORIGIN_ADDR> _map_cc_to_origin;
 public:
 	Function(CodeSegment *code_segment, string name, ORIGIN_ADDR origin_function_base, ORIGIN_SIZE origin_function_size, CodeCache *cc);
 	virtual ~Function();
@@ -55,8 +56,8 @@ public:
 	Instruction *get_instruction_by_addr(ORIGIN_ADDR origin_addr);
 	CODE_CACHE_ADDR get_cc_addr_by_inst_origin_addr(ORIGIN_ADDR origin_addr)
 	{
-		map<ORIGIN_ADDR, CODE_CACHE_ADDR>::iterator iter = _map_origin_addr_to_cc_addr.find(origin_addr);
-		if(iter==_map_origin_addr_to_cc_addr.end())
+		map<ORIGIN_ADDR, CODE_CACHE_ADDR>::iterator iter = _map_origin_to_cc.find(origin_addr);
+		if(iter==_map_origin_to_cc.end())
 			return -1;
 		else
 			return iter->second;
@@ -71,9 +72,11 @@ public:
 			return false;
 	}
 	void random_function(MAP_ORIGIN_FUNCTION *func_map);
-	void get_map_origin_cc_info(multimap<ORIGIN_ADDR, CODE_CACHE_ADDR> &map_info)
+	void get_map_origin_cc_info(multimap<ORIGIN_ADDR, ORIGIN_ADDR> &map_origin_to_cc, 
+		map<ORIGIN_ADDR, ORIGIN_ADDR> &map_cc_to_origin)
 	{
-		map_info.insert(_map_origin_addr_to_cc_addr.begin(), _map_origin_addr_to_cc_addr.end());
+		map_origin_to_cc.insert(_map_origin_to_cc.begin(), _map_origin_to_cc.end());
+		map_cc_to_origin.insert(_map_cc_to_origin.begin(), _map_cc_to_origin.end());
 	}
 	void flush_function_cc();
 	void erase_function();
