@@ -7,13 +7,14 @@
 #include "map_inst.h"
 #include "codecache.h"
 #include "stack.h"
+#include "communication.h"
 #include <iostream>
 using namespace std;
 
 CodeCacheManagement *cc_management = NULL;
 MapInst *map_inst_info = NULL;
 ShareStack *main_share_stack = NULL;
-UINT8 *main_communication_flag = NULL;
+Communication *communication = NULL;
 CODE_SEG_MAP_ORIGIN_FUNCTION CSfunctionMapOriginList;
 CODE_SEG_MAP_FUNCTION CSfunctionMapList;
 
@@ -43,10 +44,12 @@ void random_all_functions()
 		if(!it->first->isSO){
 			for(MAP_ORIGIN_FUNCTION_ITERATOR iter = it->second->begin(); iter!=it->second->end(); iter++){
 				Function *func = iter->second;
-				func->random_function(it->second);
-				func->get_map_origin_cc_info(map_inst_info->get_curr_mapping_oc(), map_inst_info->get_curr_mapping_co());
-				//func->dump_function_origin();
-				//func->dump_bb_origin();			
+				if(func->get_function_name() == "main"){
+					func->random_function(it->second);
+					func->get_map_origin_cc_info(map_inst_info->get_curr_mapping_oc(), map_inst_info->get_curr_mapping_co());
+					//func->dump_function_origin();
+					//func->dump_bb_origin();
+				}
 			}
 		}
 	}
@@ -102,18 +105,6 @@ void relocate_retaddr_and_pc()
 //TODO::handle multi-thread stack
 }
 
-void init_communication_flag()
-{
-	*main_communication_flag = 1;
-//TODO handle multi-thread
-}
-
-void set_communication_flag()
-{
-	*main_communication_flag = 0;
-	//TODO handle multi-thread
-}
-
 int main(int argc, const char *argv[])
 {
 	// 1.judge illegal
@@ -121,9 +112,10 @@ int main(int argc, const char *argv[])
 		ERR("Usage: ./%s shareCodeLogFile indirectProfileLogFile\n", argv[0]);
 		abort();
 	}
-	// 2.read share log file and create code_segment_vec
+	// 2.read share log file and create code_segment_vec share stack
 	ReadLog log(argv[1], argv[2]);
 	// 3.init log and map info
+	communication = new Communication();
 	log.init_share_log();
 	log.init_profile_log();//read indirect inst and target
 	map_inst_info = new MapInst();
@@ -131,15 +123,14 @@ int main(int argc, const char *argv[])
 	// 4.read elf to find function
 	readelf_to_find_all_functions();
 	// loop for random
-	while(1){
+	//while(1){
 		// 5.flush
 		flush();
 		map_inst_info->flush();
 		// 6.random
 		random_all_functions();
 		// 7.send signal to stop the process
-		init_communication_flag();
-		
+		communication->stop_process();
 		// 8.intercept
 		intercept_all_functions();
 		// 9.erase
@@ -147,7 +138,7 @@ int main(int argc, const char *argv[])
 		// 10.relocate
 		relocate_retaddr_and_pc();
 		// 11.continue to run
-		set_communication_flag();
-	}
+		communication->continue_process();
+	//}
 	return 0;
 }

@@ -66,7 +66,7 @@ public:
 				cc_array[idx] = NULL;
 			//stack record
 			if(isStack)
-				main_share_stack = new ShareStack(*cs);
+				main_share_stack = new ShareStack(*cs, true);
 		}
 		//3.map cc
 		for(INT32 idx=0; idx<shm_num; idx++){

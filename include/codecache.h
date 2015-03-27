@@ -68,10 +68,10 @@ public:
 
 	void flush()
 	{
-		current_code_cache_ptr[0] = 0;
-		origin_process_code_cache_ptr[0] = 0;
-		current_code_cache_ptr[1] = 0;
-		origin_process_code_cache_ptr[1] = 0;
+		current_code_cache_ptr[0] = code_cache_start[0];
+		origin_process_code_cache_ptr[0] = origin_process_code_cache_start[0];
+		current_code_cache_ptr[1] = code_cache_start[1];
+		origin_process_code_cache_ptr[1] = origin_process_code_cache_start[1];
 		curr_idx = curr_idx==0 ? 1 : 0;
 	}
 
