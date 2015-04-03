@@ -58,7 +58,7 @@ public:
 	UINT8 get_reg_operand_index(INT32 operand_idx)
 	{
 		ASSERT(is_already_disasm);
-		return _dInst.ops[0].index;
+		return _dInst.ops[operand_idx].index;
 	}
 	
 	UINT8 get_inst_code_first_byte()

@@ -2,6 +2,8 @@
 #define _INST_MACRO_H_
 #include <ucontext.h>
 #include "utility.h"
+#include "disasm_common.h"
+
 
 #if 0
 enum RegisterEncode{ 
@@ -418,6 +420,24 @@ static void convertCallinToJmpin(uint64_t callin_instcode, uint8_t callin_size, 
 	*(ptr2++) = (uint32_t)offset;\
 	ptr = reinterpret_cast<ADDR>(ptr2);\
 }while(0)
+
+#define CMP_REG32_IMM32(reg_index, imm32, ptr) do{\
+	uint8_t *ptr1 = reinterpret_cast<uint8_t *>(ptr);\
+	uint8_t modRM_reg;\
+	if(reg_index>=R_R8D && reg_index<=R_R15D){\
+		*(ptr1++) = 0x41;\
+		modRM_reg = (reg_index - R_R8D)&0x7;\
+	}else if(reg_index>=R_EAX && reg_index<=R_EDI)\
+		modRM_reg = (reg_index - R_EAX)&0x7;\
+	else\
+		ASSERT(0);\
+	*(ptr1++) = 0x81;\
+	*(ptr1++) = 0xf8|modRM_reg;\
+	uint32_t *ptr2 = reinterpret_cast<uint32_t*>(ptr1);\
+	*(ptr2++) = (uint32_t)imm32;\
+	ptr = reinterpret_cast<ADDR>(ptr2);\
+}while(0)
+
 
 #define INV_INS_1(ptr)      do{*(UINT8 *)ptr = 0xd6;} while(0)
 #define INV_INS_2(ptr)      do{*(UINT16 *)ptr = 0x360f;} while(0)

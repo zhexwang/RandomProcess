@@ -38,6 +38,28 @@ SIZE BasicBlock::copy_random_insts(ADDR curr_target_addr, ORIGIN_ADDR origin_tar
 	return _generate_cc_size;
 }
 
+static  BOOL can_hash_low_32bits(vector<BasicBlock*> &vec)
+{
+	UINT32 high32_base = 0;
+	for(vector<BasicBlock*>::iterator iter = vec.begin(); iter!=vec.end(); iter++){
+		ORIGIN_ADDR addr64 = (*iter)->get_origin_addr_before_random();
+		UINT32 high32 = (addr64>>32)&0xffffffff;
+		if(iter==vec.begin())
+			high32_base = high32;
+		
+		if(high32_base!=high32)
+			return false;
+	}
+	return true;
+}
+
+static UINT8 convert_reg64_to_reg32(UINT8 reg_index)
+{
+	ASSERT(reg_index>=R_RAX && reg_index<=R_R15);
+	UINT8 d_value = R_EAX - R_RAX;
+	return reg_index + d_value;
+}
+
 SIZE BasicBlock::random_unordinary_inst(Instruction *inst, CODE_CACHE_ADDR curr_target_addr, 
 	ORIGIN_ADDR origin_target_addr, vector<RELOCATION_ITEM> &relocation, multimap<ORIGIN_ADDR, ORIGIN_ADDR> &map_origin_to_cc, 
 	map<ORIGIN_ADDR, ORIGIN_ADDR> &map_cc_to_origin)
@@ -95,10 +117,44 @@ SIZE BasicBlock::random_unordinary_inst(Instruction *inst, CODE_CACHE_ADDR curr_
 		if(target_bb_vec.size()==0){
 			INV_INS_1(cc_start);
 			cc_start+=1;
+			//record mapping
+			map_origin_to_cc.insert(make_pair(inst_origin_addr, origin_target_addr));
+			map_cc_to_origin.insert(make_pair(origin_target_addr, inst_origin_addr));
 		}else{
+			BOOL ret =  can_hash_low_32bits(target_bb_vec);
+			ASSERT(ret);
 			switch(inst->get_operand_type(0)){
-				case O_REG:
-					ASSERT(0);
+				case O_REG:{
+					UINT8 reg32 = convert_reg64_to_reg32(inst->get_reg_operand_index(0));
+					for(UINT32 idx = 0; idx<target_bb_vec.size(); idx++){
+						ADDR bk_cc_start = cc_start;
+						ORIGIN_ADDR addr64 = target_bb_vec[idx]->get_origin_addr_before_random();
+						CMP_REG32_IMM32(reg32, (addr64&0xffffffff), cc_start);
+						//record cmp inst
+						map_origin_to_cc.insert(make_pair(inst_origin_addr, origin_target_addr));
+						map_cc_to_origin.insert(make_pair(origin_target_addr, inst_origin_addr));	
+						origin_target_addr += cc_start - bk_cc_start;
+						//je
+						UINT8 *ptr = reinterpret_cast<UINT8*>(cc_start);
+						*(ptr++) = 0x0f;
+						*(ptr++) = 0x84;
+						INT32 *ptr1 = reinterpret_cast<INT32 *>(ptr);
+						*(ptr1++) = 0x0;
+						cc_start = reinterpret_cast<ADDR>(ptr1);
+						RELOCATION_ITEM target_reloc_info = {REL32_BB_PTR, (ADDR)ptr, origin_target_addr+6, (ADDR)(target_bb_vec[idx])};
+						relocation.push_back(target_reloc_info);
+						//record je 0x0 inst
+						map_origin_to_cc.insert(make_pair(inst_origin_addr, origin_target_addr));
+						map_cc_to_origin.insert(make_pair(origin_target_addr, inst_origin_addr));	
+						origin_target_addr += 6;		
+					}
+					INV_INS_1(cc_start);
+					cc_start+=1;
+					//record illegel inst
+					map_origin_to_cc.insert(make_pair(inst_origin_addr, origin_target_addr));
+					map_cc_to_origin.insert(make_pair(origin_target_addr, inst_origin_addr));
+					//ASSERT(0);
+					}
 					break;
 				case O_DISP:
 				case O_SMEM:
@@ -196,8 +252,6 @@ void BasicBlock::dump()
 			(*it)->get_last_instruction()->get_inst_origin_addr(),  (*it)->get_insts_num(), (*it)->get_origin_addr_after_random());
 		idx++;
 	}
-	if(idx>1)
-		ASSERT(0);
 	if(idx==0)
 		PRINT("NULL");
 	INFO("\n  |---Fallthrough BasicBlock:  ");
