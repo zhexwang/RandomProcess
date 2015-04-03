@@ -154,6 +154,33 @@ public:
 		ASSERT(is_already_disasm);
 		return inst_type==RET_TYPE;
 	}
+	BOOL isMovRspRbp()
+	{
+		ASSERT(is_already_disasm);
+		return (_dInst.opcode==I_MOV) && (_dInst.ops[0].type==O_REG) && \
+			(_dInst.ops[1].type==O_REG) && (_dInst.ops[0].index==R_RBP) && (_dInst.ops[1].index==R_RSP);
+	}
+	BOOL isMovRbpRsp()
+	{
+		ASSERT(is_already_disasm);
+		return (_dInst.opcode==I_MOV) && (_dInst.ops[0].type==O_REG) && \
+			(_dInst.ops[1].type==O_REG) && (_dInst.ops[0].index==R_RSP) && (_dInst.ops[1].index==R_RBP);
+	}
+	BOOL isLeave()
+	{
+		ASSERT(is_already_disasm);
+		return _dInst.opcode==I_LEAVE;
+	}
+	BOOL isPushRbp()
+	{
+		ASSERT(is_already_disasm);
+		return (_dInst.opcode==I_PUSH) && (_dInst.ops[0].type==O_REG) && (_dInst.ops[0].index==R_RBP);
+	}
+	BOOL isPopRbp()
+	{
+		ASSERT(is_already_disasm);
+		return (_dInst.opcode==I_POP) && (_dInst.ops[0].type==O_REG) && (_dInst.ops[0].index==R_RBP);
+	}
 	ORIGIN_ADDR getBranchTargetOrigin()
 	{
 		ASSERT(is_already_disasm && (inst_type==DIRECT_JMP_TYPE || inst_type==CND_BRANCH_TYPE || inst_type==DIRECT_CALL_TYPE));

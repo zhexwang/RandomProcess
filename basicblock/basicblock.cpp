@@ -91,26 +91,31 @@ SIZE BasicBlock::random_unordinary_inst(Instruction *inst, CODE_CACHE_ADDR curr_
 			map_cc_to_origin.insert(make_pair(origin_target_addr, inst_origin_addr));
 		}
 	}else if(inst->isIndirectJmp()){
-		ASSERT(!fallthrough_bb && target_bb_vec.size()>0);
-		switch(inst->get_operand_type(0)){
-			case O_REG:
-				ASSERT(0);
-				break;
-			case O_DISP:
-			case O_SMEM:
-			case O_MEM:
-			case O_PTR: 
-				ASSERT(0);
-				break;
-			case O_PC:
-			case O_IMM:
-			case O_IMM1:
-			case O_IMM2:
-			case O_NONE:
-				ASSERTM(0, "jmp* must have one operand!\n");
-				break;
-			default:
-				ASSERTM(0, "jmp* operand is not recognized!\n");
+		ASSERT(!fallthrough_bb);
+		if(target_bb_vec.size()==0){
+			INV_INS_1(cc_start);
+			cc_start+=1;
+		}else{
+			switch(inst->get_operand_type(0)){
+				case O_REG:
+					ASSERT(0);
+					break;
+				case O_DISP:
+				case O_SMEM:
+				case O_MEM:
+				case O_PTR: 
+					ASSERT(0);
+					break;
+				case O_PC:
+				case O_IMM:
+				case O_IMM1:
+				case O_IMM2:
+				case O_NONE:
+					ASSERTM(0, "jmp* must have one operand!\n");
+					break;
+				default:
+					ASSERTM(0, "jmp* operand is not recognized!\n");
+			}
 		}
 	}else if(inst->isConditionBranch()){
 		ASSERT((target_bb_vec.size()==1)&&fallthrough_bb);

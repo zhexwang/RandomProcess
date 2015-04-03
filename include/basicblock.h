@@ -116,6 +116,10 @@ public:
 	{
 		return get_last_instruction()->isCall();
 	}
+	BOOL is_ret_bb()
+	{
+		return get_last_instruction()->isRet();
+	}
 	BOOL is_self_loop()
 	{
 		return _is_self_loop;

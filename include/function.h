@@ -8,6 +8,7 @@
 #include "code_segment.h"
 #include "map_function.h"
 #include "codecache.h"
+#include "map_inst.h"
 #include <vector>
 #include <map>
 using namespace std;
@@ -40,8 +41,12 @@ private:
 	BOOL is_already_finish_random;
 	BOOL is_already_finish_intercept;
 	BOOL is_already_finish_erase;
+	BOOL is_function_can_be_random;
 	multimap<ORIGIN_ADDR, ORIGIN_ADDR> _map_origin_to_cc;
 	map<ORIGIN_ADDR, ORIGIN_ADDR> _map_cc_to_origin;
+	//rbp analysis
+	BOOL is_already_finish_analysis_stack;
+	map<ORIGIN_ADDR, STACK_TYPE> stack_map;
 public:
 	Function(CodeSegment *code_segment, string name, ORIGIN_ADDR origin_function_base, ORIGIN_SIZE origin_function_size, CodeCache *cc);
 	virtual ~Function();
@@ -72,11 +77,16 @@ public:
 			return false;
 	}
 	void random_function(MAP_ORIGIN_FUNCTION *func_map);
+	void analysis_stack(MAP_ORIGIN_FUNCTION *func_map);
 	void get_map_origin_cc_info(multimap<ORIGIN_ADDR, ORIGIN_ADDR> &map_origin_to_cc, 
 		map<ORIGIN_ADDR, ORIGIN_ADDR> &map_cc_to_origin)
 	{
 		map_origin_to_cc.insert(_map_origin_to_cc.begin(), _map_origin_to_cc.end());
 		map_cc_to_origin.insert(_map_cc_to_origin.begin(), _map_cc_to_origin.end());
+	}
+	void get_stack_map(map<ORIGIN_ADDR, STACK_TYPE> &map)
+	{
+		map.insert(stack_map.begin(), stack_map.end());
 	}
 	void flush_function_cc();
 	void erase_function();

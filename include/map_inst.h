@@ -6,6 +6,13 @@
 #include <map>
 using namespace std;
 
+typedef enum stack_type{
+	S_RBP_A_4 = 0,
+	S_RSP,
+	S_RSP_A_4,
+	S_TYPE_SUM,
+}STACK_TYPE;
+
 class MapInst
 {
 protected:

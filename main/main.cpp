@@ -38,18 +38,31 @@ void readelf_to_find_all_functions()
 	return ;
 }
 
+void analysis_all_functions_stack()
+{
+	for(CODE_SEG_MAP_ORIGIN_FUNCTION_ITERATOR it = CSfunctionMapOriginList.begin(); it!=CSfunctionMapOriginList.end(); it++){
+		if(!it->first->isSO){
+			for(MAP_ORIGIN_FUNCTION_ITERATOR iter = it->second->begin(); iter!=it->second->end(); iter++){
+				Function *func = iter->second;
+				func->analysis_stack(it->second);
+				func->get_stack_map(ShareStack::stack_map);
+				//func->dump_function_origin();
+			}
+		}
+	}
+	return ;
+}
+
 void random_all_functions()
 {
 	for(CODE_SEG_MAP_ORIGIN_FUNCTION_ITERATOR it = CSfunctionMapOriginList.begin(); it!=CSfunctionMapOriginList.end(); it++){
 		if(!it->first->isSO){
 			for(MAP_ORIGIN_FUNCTION_ITERATOR iter = it->second->begin(); iter!=it->second->end(); iter++){
 				Function *func = iter->second;
-				if(func->get_function_name() == "main"){
+				//if(func->get_function_name() == "main"){
 					func->random_function(it->second);
 					func->get_map_origin_cc_info(map_inst_info->get_curr_mapping_oc(), map_inst_info->get_curr_mapping_co());
-					//func->dump_function_origin();
-					//func->dump_bb_origin();
-				}
+				//}
 			}
 		}
 	}
@@ -62,7 +75,7 @@ void intercept_all_functions()
 		if(!it->first->isSO){
 			for(MAP_ORIGIN_FUNCTION_ITERATOR iter = it->second->begin(); iter!=it->second->end(); iter++){
 				Function *func = iter->second;
-				if(func->get_function_name() == "main")
+				//if(func->get_function_name() == "main")
 					func->intercept_to_random_function();
 			}
 		}
@@ -76,7 +89,7 @@ void erase_all_functions()
 		if(!it->first->isSO){
 			for(MAP_ORIGIN_FUNCTION_ITERATOR iter = it->second->begin(); iter!=it->second->end(); iter++){
 				Function *func = iter->second;
-				if(func->get_function_name() == "main")
+				//if(func->get_function_name() == "main")
 					func->erase_function();			
 			}
 		}
@@ -122,6 +135,8 @@ int main(int argc, const char *argv[])
 	//dump_code_segment();
 	// 4.read elf to find function
 	readelf_to_find_all_functions();
+	// 5.find all stack map
+	analysis_all_functions_stack();
 	// loop for random
 	//while(1){
 		// 5.flush
@@ -130,15 +145,15 @@ int main(int argc, const char *argv[])
 		// 6.random
 		random_all_functions();
 		// 7.send signal to stop the process
-		communication->stop_process();
+		//communication->stop_process();
 		// 8.intercept
 		intercept_all_functions();
 		// 9.erase
 		erase_all_functions();
 		// 10.relocate
-		relocate_retaddr_and_pc();
+		//relocate_retaddr_and_pc();
 		// 11.continue to run
-		communication->continue_process();
+		//communication->continue_process();
 	//}
 	return 0;
 }

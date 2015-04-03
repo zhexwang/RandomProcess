@@ -3,8 +3,10 @@
 
 Function::Function(CodeSegment *code_segment, string name, ORIGIN_ADDR origin_function_base, ORIGIN_SIZE origin_function_size, CodeCache *cc)
 	:_code_segment(code_segment), _function_name(name), _origin_function_base(origin_function_base), _origin_function_size(origin_function_size)
-	, _random_cc_start(0), _random_cc_origin_start(0), _random_cc_size(0), code_cache(cc), is_already_disasm(false), is_already_split_into_bb(false), 
-	is_already_finish_random(false) , is_already_finish_intercept(false), is_already_finish_erase(false)
+	, _random_cc_start(0), _random_cc_origin_start(0), _random_cc_size(0), code_cache(cc), is_already_disasm(false), is_already_split_into_bb(false)
+	, is_already_finish_random(false) , is_already_finish_intercept(false), is_already_finish_erase(false), is_function_can_be_random(true)
+	, is_already_finish_analysis_stack(false)
+	
 {
 	_function_base = code_segment->convert_origin_process_addr_to_this(_origin_function_base);
 	_function_size = (SIZE)_origin_function_size;
@@ -18,8 +20,26 @@ void Function::dump_function_origin()
 	INFO("%s",_function_name.c_str());
 	PRINT("(Path:%s)[Random:0x%lx-0x%lx]\n", _code_segment->file_path.c_str(), _random_cc_origin_start, _random_cc_origin_start+_random_cc_size);
 	if(is_already_disasm){
+		if(is_already_finish_analysis_stack){
+			PRINT("Return address calculate method:  ");
+			PRINT(COLOR_BLUE"RSP   "COLOR_END);
+			PRINT("RBP_PLUS_4BYTE  ");
+			PRINT(COLOR_YELLOW"RSP_PLUS_4BYTE\n"COLOR_END);
+		}
 		for(vector<Instruction*>::iterator iter = _origin_function_instructions.begin(); iter!=_origin_function_instructions.end(); iter++){
+			if(is_already_finish_analysis_stack){
+				map<ORIGIN_ADDR, STACK_TYPE>::iterator ret = stack_map.find((*iter)->get_inst_origin_addr());
+				ASSERT(ret!=stack_map.end());
+				STACK_TYPE type = ret->second;
+				switch(type){
+					case S_RSP: PRINT(COLOR_BLUE); break;
+					case S_RBP_A_4: break;
+					case S_RSP_A_4: PRINT(COLOR_YELLOW); break;
+					default: ASSERT(0);
+				}
+			}
 			(*iter)->dump();
+			PRINT(COLOR_END);
 		}
 	}else
 		ERR("Do not disasm!\n");
@@ -62,20 +82,25 @@ void Function::intercept_to_random_function()
 	ASSERT(is_already_finish_random && _random_cc_origin_start!=0 && _random_cc_size!=0 && _random_cc_start!=0);
 	INT64 offset = _random_cc_origin_start - _origin_function_base - 0x5;
 	ASSERT((offset > 0 ? offset : -offset) < 0x7fffffff);
-	ASSERT(_function_size>=5);
-	ADDR ptr = _function_base;
-	JMP_REL32(offset,ptr);
-	is_already_finish_intercept = true;
+	if(_function_size>=5){
+		ADDR ptr = _function_base;
+		JMP_REL32(offset,ptr);
+		is_already_finish_intercept = true;
+		is_function_can_be_random = true;
+	}else
+		is_function_can_be_random = false;
 }
 
 void Function::erase_function()
 {
+	if(!is_function_can_be_random)
+		return ;
 	ASSERT(is_already_finish_intercept);
 	if(is_already_finish_erase)
 		return ;
 	ADDR erase_start = _function_base+5;
 	ADDR erase_end = _function_base+_function_size;
-	for(ADDR erase_item = erase_start; erase_item<=erase_end; erase_item++)
+	for(ADDR erase_item = erase_start; erase_item<erase_end; erase_item++)
 		INV_INS_1(erase_item);
 	is_already_finish_erase = true;
 }
@@ -131,6 +156,87 @@ void Function::random_function(MAP_ORIGIN_FUNCTION *func_map)
 	is_already_finish_random = true;
 	
 	return ;
+}
+
+void Function::analysis_stack(MAP_ORIGIN_FUNCTION *func_map)
+{
+	if(is_already_finish_analysis_stack)
+		return;
+	// 1.disasm
+	disassemble();
+	// 2.split into bb
+	split_into_basic_block(func_map);
+	
+	BOOL isRbpStored = false;
+	BOOL isMov = false;
+	for(vector<BasicBlock *>::iterator ite = bb_list.begin(); ite!=bb_list.end(); ite++){
+		if(ite==bb_list.begin()){
+			//entry block
+			BOOL isRbpRestored = false;
+			for(BB_INS_ITER it = (*ite)->begin(); it!=(*ite)->end(); it++){
+				if((*it)->isPushRbp()){
+					ASSERT(!isMov);
+					stack_map.insert(make_pair((*it)->get_inst_origin_addr(), S_RSP));
+					isRbpStored = true;
+				}else if((*it)->isMovRspRbp()){
+					ASSERT(isRbpStored);
+					stack_map.insert(make_pair((*it)->get_inst_origin_addr(), S_RSP_A_4));
+					isMov = true;
+				}else if((*it)->isPopRbp() || (*it)->isLeave()){
+					ASSERT(isMov && isRbpStored && !isRbpRestored);
+					stack_map.insert(make_pair((*it)->get_inst_origin_addr(), S_RBP_A_4));
+					isRbpRestored = true;
+				}else{
+					if(isRbpStored){						
+						if(isMov){
+							if(isRbpRestored){
+								stack_map.insert(make_pair((*it)->get_inst_origin_addr(), S_RSP));
+							}else
+								stack_map.insert(make_pair((*it)->get_inst_origin_addr(), S_RBP_A_4));
+						}else{
+							ASSERT(!isRbpRestored);
+							stack_map.insert(make_pair((*it)->get_inst_origin_addr(), S_RSP_A_4));
+						}
+					}else{
+						ASSERT(!isMov && !isRbpRestored);
+						stack_map.insert(make_pair((*it)->get_inst_origin_addr(), S_RSP));
+					}
+				}
+			}
+			
+			if(isRbpRestored)
+				ASSERT((*ite)->is_target_empty() && (*ite)->is_fallthrough_empty());
+		}else{
+			BOOL isRbpRestored = false;
+			for(BB_INS_ITER it = (*ite)->begin(); it!=(*ite)->end(); it++){
+				if((*it)->isPopRbp() || (*it)->isLeave()){
+					ASSERT(isMov && isRbpStored && !isRbpRestored);
+					stack_map.insert(make_pair((*it)->get_inst_origin_addr(), S_RBP_A_4));
+					isRbpRestored = true;
+				}else{
+					if(isRbpStored){						
+						if(isMov){
+							if(isRbpRestored){
+								stack_map.insert(make_pair((*it)->get_inst_origin_addr(), S_RSP));
+							}else
+								stack_map.insert(make_pair((*it)->get_inst_origin_addr(), S_RBP_A_4));
+						}else{
+							ASSERT(!isRbpRestored);
+							stack_map.insert(make_pair((*it)->get_inst_origin_addr(), S_RSP_A_4));
+						}
+					}else{
+						ASSERT(!isMov && !isRbpRestored);
+						stack_map.insert(make_pair((*it)->get_inst_origin_addr(), S_RSP));
+					}
+				}
+			}
+			
+			if(isRbpRestored)
+				ASSERT((*ite)->is_target_empty() && (*ite)->is_fallthrough_empty());
+		}
+	}
+
+	is_already_finish_analysis_stack = true;
 }
 
 void Function::flush_function_cc()
@@ -226,7 +332,7 @@ void Function::split_into_basic_block(MAP_ORIGIN_FUNCTION *func_map)
 			INFO("%.8lx indirectJmp!\n", curr_inst->get_inst_origin_addr() - _code_segment->code_start);
 			//add target
 			vector<ORIGIN_ADDR> *target_addr_list = _code_segment->find_target_by_inst_addr(curr_inst->get_inst_origin_addr());
-			INFO("Jmp* target=%d\n", (INT32)target_addr_list->size());
+			//INFO("Jmp* target=%d\n", (INT32)target_addr_list->size());
 			for(vector<ORIGIN_ADDR>::iterator it = target_addr_list->begin(); it!=target_addr_list->end(); it++){
 				Instruction *target_inst = get_instruction_by_addr(*it);
 				if(target_inst){
@@ -235,7 +341,7 @@ void Function::split_into_basic_block(MAP_ORIGIN_FUNCTION *func_map)
 					ASSERTM(0, "%.8lx  target inst is out of function!\n", curr_inst->get_inst_origin_addr());
 			}
 			if(array[idx].targetList.size()==0)
-				ASSERTM(0, "%.8lx  do not find target!\n", curr_inst->get_inst_origin_addr());
+				;//ASSERTM(0, "%.8lx  do not find target!\n", curr_inst->get_inst_origin_addr());
 			array[idx].fallthroughInst = NULL;
 			array[idx].isBBEnd = true;
 			if((iter+1)!=_origin_function_instructions.end())

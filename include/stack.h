@@ -20,6 +20,7 @@ private:
 
 	COMMUNICATION_INFO *info;
 public:
+	static map<ORIGIN_ADDR, STACK_TYPE> stack_map; 
 	ShareStack(CodeSegment &codeSegment, BOOL is_main_stack):_is_main_stack(is_main_stack)
 	{
 		ASSERT(codeSegment.is_stack && !codeSegment.is_code_cache);

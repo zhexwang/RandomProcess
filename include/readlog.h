@@ -125,6 +125,7 @@ public:
 				//cout<<hex<<inst<<"("<<inst_idx<<")==>"<<target<<"("<<target_idx<<")"<<endl;
 			}
 		}
+		INFO("end!\n");
 	}
 };
 

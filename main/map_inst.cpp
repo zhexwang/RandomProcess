@@ -30,6 +30,20 @@ ORIGIN_ADDR MapInst::get_new_addr_from_old(ORIGIN_ADDR old_inst_addr, BOOL is_in
 		ASSERT(idx==target_idx);
 		
 		return ret_iter->second;
-	}else
-		return old_inst_addr;
+	}else{
+		UINT8 old_idx = curr_idx==0 ? 1 : 0;
+		//old map should not has this instruction
+		INT32 count_num = map_origin_to_cc[old_idx].count(old_inst_addr);
+		ASSERT(count_num==0);	
+
+		MAP_OC_PAIR new_range = map_origin_to_cc[curr_idx].equal_range(old_inst_addr);
+		if(new_range.first==new_range.second){
+			//do not random this instruction
+			return old_inst_addr;
+		}else{
+			//first cc instruction
+			MAP_OC_ITERATOR ret_iter = new_range.first;
+			return ret_iter->second;
+		}	
+	}
 }
