@@ -122,10 +122,9 @@ public:
 				cs->indirect_inst_map.insert(make_pair(cs->code_start+inst, cs->code_start+target));
 			}else{
 				//TODO: 
-				//cout<<hex<<inst<<"("<<inst_idx<<")==>"<<target<<"("<<target_idx<<")"<<endl;
+				cout<<hex<<inst<<"("<<inst_idx<<")==>"<<target<<"("<<target_idx<<")"<<endl;
 			}
 		}
-		INFO("end!\n");
 	}
 };
 

@@ -16,7 +16,8 @@ Instruction::Instruction(ORIGIN_ADDR origin_addr, ADDR current_addr, SIZE instru
 SIZE Instruction::copy_instruction(CODE_CACHE_ADDR curr_copy_addr, ORIGIN_ADDR origin_copy_addr, 
 	multimap<ORIGIN_ADDR, ORIGIN_ADDR> &map_origin_to_cc, map<ORIGIN_ADDR, ORIGIN_ADDR> &map_cc_to_origin)
 {
-	ASSERT(is_already_disasm && (inst_type==NONE_TYPE || inst_type==RET_TYPE || inst_type==INDIRECT_CALL_TYPE));
+	ASSERT(is_already_disasm && (inst_type==NONE_TYPE || inst_type==RET_TYPE\
+		|| inst_type==INDIRECT_CALL_TYPE || inst_type==INDIRECT_JMP_TYPE));
 
 	if(_dInst.flags&FLAG_RIP_RELATIVE){
 		ASSERTM(_dInst.ops[0].type==O_SMEM || _dInst.ops[0].type==O_MEM 

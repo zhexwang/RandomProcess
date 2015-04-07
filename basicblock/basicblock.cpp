@@ -115,11 +115,7 @@ SIZE BasicBlock::random_unordinary_inst(Instruction *inst, CODE_CACHE_ADDR curr_
 	}else if(inst->isIndirectJmp()){
 		ASSERT(!fallthrough_bb);
 		if(target_bb_vec.size()==0){
-			INV_INS_1(cc_start);
-			cc_start+=1;
-			//record mapping
-			map_origin_to_cc.insert(make_pair(inst_origin_addr, origin_target_addr));
-			map_cc_to_origin.insert(make_pair(origin_target_addr, inst_origin_addr));
+			return inst->copy_instruction(curr_target_addr, origin_target_addr, map_origin_to_cc, map_cc_to_origin);
 		}else{
 			BOOL ret =  can_hash_low_32bits(target_bb_vec);
 			ASSERT(ret);
@@ -153,15 +149,50 @@ SIZE BasicBlock::random_unordinary_inst(Instruction *inst, CODE_CACHE_ADDR curr_
 					//record illegel inst
 					map_origin_to_cc.insert(make_pair(inst_origin_addr, origin_target_addr));
 					map_cc_to_origin.insert(make_pair(origin_target_addr, inst_origin_addr));
-					//ASSERT(0);
-					}
-					break;
+					}break;
 				case O_DISP:
 				case O_SMEM:
-				case O_MEM:
-				case O_PTR: 
-					ASSERT(0);
-					break;
+				case O_MEM:{ 
+					//ASSERT(0);
+					SIZE jmpin_size = inst->get_inst_size();
+					UINT8 *jmpin_instcode = new UINT8[jmpin_size];
+					inst->get_inst_code(jmpin_instcode, jmpin_size);
+					for(UINT32 idx = 0; idx<target_bb_vec.size(); idx++){
+						ADDR bk_cc_start = cc_start;
+						ORIGIN_ADDR addr64 = target_bb_vec[idx]->get_origin_addr_before_random();
+						if(inst->get_reg_operand_index(0) == R_RIP){
+							ASSERT(inst->isRipRelative());
+							convertJmpinRipToCmpLImm32(jmpin_instcode, jmpin_size, inst->get_inst_origin_addr(),\
+								(addr64&0xffffffff), cc_start, origin_target_addr);
+						}else{
+							ASSERT(!inst->isRipRelative());
+							convertJmpinToCmpLImm32(jmpin_instcode, jmpin_size, (addr64&0xffffffff), cc_start);
+						}
+						//record cmp inst
+						map_origin_to_cc.insert(make_pair(inst_origin_addr, origin_target_addr));
+						map_cc_to_origin.insert(make_pair(origin_target_addr, inst_origin_addr));	
+						origin_target_addr += cc_start - bk_cc_start;
+						//je
+						UINT8 *ptr = reinterpret_cast<UINT8*>(cc_start);
+						*(ptr++) = 0x0f;
+						*(ptr++) = 0x84;
+						INT32 *ptr1 = reinterpret_cast<INT32 *>(ptr);
+						*(ptr1++) = 0x0;
+						cc_start = reinterpret_cast<ADDR>(ptr1);
+						RELOCATION_ITEM target_reloc_info = {REL32_BB_PTR, (ADDR)ptr, origin_target_addr+6, (ADDR)(target_bb_vec[idx])};
+						relocation.push_back(target_reloc_info);
+						//record je 0x0 inst
+						map_origin_to_cc.insert(make_pair(inst_origin_addr, origin_target_addr));
+						map_cc_to_origin.insert(make_pair(origin_target_addr, inst_origin_addr));	
+						origin_target_addr += 6;		
+					}
+					INV_INS_1(cc_start);
+					cc_start+=1;
+					//record illegel inst
+					map_origin_to_cc.insert(make_pair(inst_origin_addr, origin_target_addr));
+					map_cc_to_origin.insert(make_pair(origin_target_addr, inst_origin_addr));
+					}break;
+				case O_PTR:
 				case O_PC:
 				case O_IMM:
 				case O_IMM1:

@@ -62,6 +62,7 @@ void random_all_functions()
 				//if(func->get_function_name() == "main"){
 					func->random_function(it->second);
 					func->get_map_origin_cc_info(map_inst_info->get_curr_mapping_oc(), map_inst_info->get_curr_mapping_co());
+					//func->dump_bb_origin();
 				//}
 			}
 		}

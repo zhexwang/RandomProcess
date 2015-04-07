@@ -104,6 +104,10 @@ public:
 	{
 		return _current_instruction_addr;
 	}
+	BOOL isRipRelative()
+	{
+		return _dInst.flags&FLAG_RIP_RELATIVE ? true : false;
+	}
 	BOOL isOrdinaryInst()
 	{
 		ASSERT(is_already_disasm);

@@ -329,19 +329,26 @@ void Function::split_into_basic_block(MAP_ORIGIN_FUNCTION *func_map)
 				array[idx+1].isBBEntry = true;
 			}
 		}else if(curr_inst->isIndirectJmp()){
-			INFO("%.8lx indirectJmp!\n", curr_inst->get_inst_origin_addr() - _code_segment->code_start);
+			//INFO("%.8lx indirectJmp!\n", curr_inst->get_inst_origin_addr());
 			//add target
+			BOOL call_out_of_func = false;
 			vector<ORIGIN_ADDR> *target_addr_list = _code_segment->find_target_by_inst_addr(curr_inst->get_inst_origin_addr());
-			//INFO("Jmp* target=%d\n", (INT32)target_addr_list->size());
 			for(vector<ORIGIN_ADDR>::iterator it = target_addr_list->begin(); it!=target_addr_list->end(); it++){
 				Instruction *target_inst = get_instruction_by_addr(*it);
 				if(target_inst){
 					array[idx].targetList.push_back(target_inst);
-				}else
-					ASSERTM(0, "%.8lx  target inst is out of function!\n", curr_inst->get_inst_origin_addr());
+				}else{
+					MAP_ORIGIN_FUNCTION_ITERATOR ret_iter = func_map->find(*it);
+					ASSERTM(ret_iter!=func_map->end(), \
+						"%.8lx  target inst is out of function && target is not function entry!\n", curr_inst->get_inst_origin_addr());
+					call_out_of_func = true;
+				}
 			}
+			if(call_out_of_func)
+				ASSERTM(array[idx].targetList.size()==0, "jmpin inst jump in and out of function!");
+			
 			if(array[idx].targetList.size()==0)
-				;//ASSERTM(0, "%.8lx  do not find target!\n", curr_inst->get_inst_origin_addr());
+				;//ASSERTM(!call_out_of_func, "%.8lx  do not find target!\n", curr_inst->get_inst_origin_addr());
 			array[idx].fallthroughInst = NULL;
 			array[idx].isBBEnd = true;
 			if((iter+1)!=_origin_function_instructions.end())

@@ -143,6 +143,13 @@ static void convertCallinToJmpin(uint64_t callin_instcode, uint8_t callin_size, 
 #endif
 //macro of instructions
 
+//jmpq *mem(not rip relative) ==> cmpl $0x12345678, mem
+extern void convertJmpinToCmpLImm32(UINT8 *jmpin_instcode, UINT32 jmpin_size, UINT32 imm32, ADDR &code_start);
+
+//jmpq *mem(rip relative) ==> cmpl $0x12345678, mem
+extern void convertJmpinRipToCmpLImm32(UINT8 *jmpin_instcode, UINT32 jmpin_size, ADDR jmpin_addr, \
+	UINT32 imm32, ADDR &code_start, ORIGIN_ADDR origin_cc_start);
+
 /*movabs $0x1234567887654321, %rbx
     jmpq *%rbx
 */
