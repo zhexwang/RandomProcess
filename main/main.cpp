@@ -44,8 +44,7 @@ void analysis_all_functions_stack()
 		if(!it->first->isSO){
 			for(MAP_ORIGIN_FUNCTION_ITERATOR iter = it->second->begin(); iter!=it->second->end(); iter++){
 				Function *func = iter->second;
-				func->analysis_stack(it->second);
-				func->get_stack_map(ShareStack::stack_map);
+				func->analysis_stack(it->second, ShareStack::stack_map);
 				//func->dump_function_origin();
 			}
 		}
@@ -60,9 +59,8 @@ void random_all_functions()
 			for(MAP_ORIGIN_FUNCTION_ITERATOR iter = it->second->begin(); iter!=it->second->end(); iter++){
 				Function *func = iter->second;
 				//if(func->get_function_name() == "main"){
-					func->random_function(it->second);
-					func->get_map_origin_cc_info(map_inst_info->get_curr_mapping_oc(), map_inst_info->get_curr_mapping_co());
-					//func->dump_bb_origin();
+					func->random_function(it->second, map_inst_info->get_curr_mapping_oc(), map_inst_info->get_curr_mapping_co());
+					//INFO("%s\n", func->get_function_name().c_str());
 				//}
 			}
 		}

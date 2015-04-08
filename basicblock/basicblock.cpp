@@ -10,6 +10,7 @@ SIZE BasicBlock::copy_random_insts(ADDR curr_target_addr, ORIGIN_ADDR origin_tar
 
 	_origin_copy_addr = origin_target_addr;
 	_curr_copy_addr = curr_target_addr;
+	SIZE cc_size = 0;
 	//copy instrucitons
 	SIZE inst_copy_size = 0;
 	for(vector<Instruction*>::iterator iter = instruction_vec.begin(); (iter<=instruction_vec.end() && iter!=end()); iter++){
@@ -31,9 +32,12 @@ SIZE BasicBlock::copy_random_insts(ADDR curr_target_addr, ORIGIN_ADDR origin_tar
 			ASSERT((*iter)==get_last_instruction());
 			inst_copy_size = random_unordinary_inst(*iter, curr_target_addr, origin_target_addr, relocation, map_origin_to_cc, map_cc_to_origin);
 		}
-		_generate_cc_size += inst_copy_size;
+		
+		cc_size += inst_copy_size;
 	}
-	
+
+	ASSERT(cc_size<=0x7fffffff);
+	_generate_cc_size = cc_size;
 
 	return _generate_cc_size;
 }
@@ -186,6 +190,7 @@ SIZE BasicBlock::random_unordinary_inst(Instruction *inst, CODE_CACHE_ADDR curr_
 						map_cc_to_origin.insert(make_pair(origin_target_addr, inst_origin_addr));	
 						origin_target_addr += 6;		
 					}
+					delete []jmpin_instcode;
 					INV_INS_1(cc_start);
 					cc_start+=1;
 					//record illegel inst
@@ -263,10 +268,10 @@ BB_INS_ITER BasicBlock::find_first_least_size_instruction(SIZE least_size)
 void BasicBlock::dump()
 {
 	ASSERT(!instruction_vec.empty());
-	PRINT(COLOR_BLUE"(BasicBlock *)%p[0x%lx-0x%lx](%d)[RandomEntry: 0x%lx]\n"COLOR_END, this, get_first_instruction()->get_inst_origin_addr(), 
+	PRINT(COLOR_HIGH_GREEN"(BasicBlock *)%p[0x%lx-0x%lx](%d)[RandomEntry: 0x%lx]\n"COLOR_END, this, get_first_instruction()->get_inst_origin_addr(), 
 		get_last_instruction()->get_inst_origin_addr(), (INT32)instruction_vec.size(), _origin_copy_addr);
-	INFO("  |---Prev BasicBlock:  ");
 	INT32 idx=0;
+	/*INFO("  |---Prev BasicBlock:  ");
 	for(vector<BasicBlock*>::iterator it = prev_bb_vec.begin(); it!=prev_bb_vec.end(); it++){
 		INFO("\n  |   ");
 		PRINT("  |---<%d>(BasicBlock *)%p[0x%lx-0x%lx](%d)[RandomEntry: 0x%lx]", idx,  *it, (*it)->get_first_instruction()->get_inst_origin_addr(), 
@@ -274,8 +279,8 @@ void BasicBlock::dump()
 		idx++;
 	}
 	if(idx==0)
-		PRINT("NULL");
-	INFO("\n  |---Target BasicBlock:  ");
+		PRINT("NULL");*/
+	INFO("  |---Target BasicBlock:  ");
 	idx=0;
 	for(vector<BasicBlock*>::iterator it = target_bb_vec.begin(); it!=target_bb_vec.end(); it++){
 		INFO("\n  |   ");
@@ -301,9 +306,16 @@ void BasicBlock::dump()
 
 	INFO("  |---DUMP CC INSTRUCTIONS:\n");
 	
-	if(is_finish_generate_cc)
-		code_cache->disassemble("        |---", _curr_copy_addr, _curr_copy_addr+_generate_cc_size);
-	else
+	if(is_finish_generate_cc){
+		_DecodedInst  *disassembled = new _DecodedInst[_generate_cc_size];
+		UINT32 decodedInstsCount = 0;
+		distorm_decode(_origin_copy_addr, (UINT8*)_curr_copy_addr, _generate_cc_size, Decode64Bits, disassembled, _generate_cc_size, &decodedInstsCount);
+		for(UINT32 i=0; i<decodedInstsCount; i++){
+			PRINT("        |---%12lx (%02d) %-24s  %s%s%s\n", disassembled[i].offset, disassembled[i].size, disassembled[i].instructionHex.p,\
+				(char*)disassembled[i].mnemonic.p, disassembled[i].operands.length != 0 ? " " : "", (char*)disassembled[i].operands.p);
+		}
+		delete [] disassembled;
+	}else
 		PRINT("        |---      CC DO NOT GENERATE\n");
 
 }

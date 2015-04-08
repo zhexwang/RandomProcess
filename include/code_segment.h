@@ -69,10 +69,11 @@ public:
 	}
 	BOOL is_so_file()
 	{
-		if(string::npos == file_path.find(".so"))
+		if(string::npos == shm_name.find(".so."))
 			return false;
 		else
 			return true;
+			
 	}
 	ADDR convert_origin_process_addr_to_this(ORIGIN_ADDR origin_addr)
 	{

@@ -117,13 +117,11 @@ public:
 			SIZE inst, target;
 			INT32 inst_idx, target_idx;
 			ifs>>hex>>inst>>c>>inst_idx>>padding>>target>>c>>target_idx>>c;
-			if(inst_idx==target_idx){
-				CodeSegment *cs = array[inst_idx];
-				cs->indirect_inst_map.insert(make_pair(cs->code_start+inst, cs->code_start+target));
-			}else{
-				//TODO: 
-				cout<<hex<<inst<<"("<<inst_idx<<")==>"<<target<<"("<<target_idx<<")"<<endl;
-			}
+			CodeSegment *curr_cs = array[inst_idx];
+			CodeSegment *target_cs = array[target_idx];
+			ORIGIN_ADDR curr_inst_addr = curr_cs->code_start+inst;
+			ORIGIN_ADDR target_inst_addr = target_cs->code_start+target;
+			curr_cs->indirect_inst_map.insert(make_pair(curr_inst_addr, target_inst_addr));
 		}
 	}
 };

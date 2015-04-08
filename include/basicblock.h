@@ -15,19 +15,17 @@ class BasicBlock
 {
 private:
 	vector<Instruction *> instruction_vec;
-	vector<BasicBlock *> prev_bb_vec;
+	//vector<BasicBlock *> prev_bb_vec;
 	BasicBlock *fallthrough_bb;
 	vector<BasicBlock *> target_bb_vec;
 	CODE_CACHE_ADDR _curr_copy_addr;
 	ORIGIN_ADDR _origin_copy_addr;
-	SIZE _generate_cc_size;
+	UINT32 _generate_cc_size;
 	//used for random
 	BOOL is_finish_generate_cc;
-	BOOL _is_self_loop;
-	CodeCache *code_cache;
 public:
-	BasicBlock(CodeCache *cc):fallthrough_bb(NULL), _curr_copy_addr(0), _origin_copy_addr(0), _generate_cc_size(0)
-		, is_finish_generate_cc(false), _is_self_loop(false), code_cache(cc)
+	BasicBlock():fallthrough_bb(NULL), _curr_copy_addr(0), _origin_copy_addr(0), _generate_cc_size(0)
+		, is_finish_generate_cc(false)
 	{
 		;		
 	}
@@ -70,6 +68,7 @@ public:
 	{
 		return instruction_vec.end();
 	}
+	/*
 	BB_ITER prev_begin()
 	{
 		return prev_bb_vec.begin();
@@ -78,6 +77,7 @@ public:
 	{
 		return prev_bb_vec.end();
 	}
+	*/
 	BB_ITER target_begin()
 	{
 		return target_bb_vec.begin();
@@ -100,12 +100,10 @@ public:
 	}
 	void add_prev_bb(BasicBlock *prev_bb)
 	{
-		prev_bb_vec.push_back(prev_bb);
+		;//prev_bb_vec.push_back(prev_bb);
 	}
 	void add_target_bb(BasicBlock *target_bb)
 	{
-		if(target_bb==this)
-			_is_self_loop = true;
 		target_bb_vec.push_back(target_bb);
 	}
 	void add_fallthrough_bb(BasicBlock *fall_bb)
@@ -119,10 +117,6 @@ public:
 	BOOL is_ret_bb()
 	{
 		return get_last_instruction()->isRet();
-	}
-	BOOL is_self_loop()
-	{
-		return _is_self_loop;
 	}
 	void finish_generate_cc()
 	{

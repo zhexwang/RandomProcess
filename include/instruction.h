@@ -1,10 +1,13 @@
 #ifndef _INSTRUCTION_H_
 #define _INSTRUCTION_H_
+#include <string.h>
 
 #include "disasm_common.h"
 #include "type.h"
 #include "utility.h"
 #include "codecache.h"
+
+#define INST_MAX_SIZE 12
 
 class Instruction
 {
@@ -18,189 +21,145 @@ public:
 		INDIRECT_CALL_TYPE,/* Indicates the instruction is one of: CALLIN CALL FAR */
 		INDIRECT_JMP_TYPE,/*Indicates the instruction is one of: JMPIN */
 		RET_TYPE,
-	}INSTRUCTION_TYPE;
+	}__attribute((packed)) INSTRUCTION_TYPE;
 	static const char * type_to_string[];
 private:
-	INSTRUCTION_TYPE inst_type;
 	ORIGIN_ADDR _origin_instruction_addr;
-	ADDR _current_instruction_addr;
-	_DInst _dInst;
-	_DecodedInst _decodedInst;
-	BOOL is_already_disasm;
-	SIZE security_size;
+	_DInst *_dInst;
+	UINT8 inst_size;
+	UINT8 inst_code[INST_MAX_SIZE];
+	INSTRUCTION_TYPE inst_type;
 public:
-	Instruction(ORIGIN_ADDR origin_addr, ADDR current_addr, SIZE instruction_max_size);
-	~Instruction(){;}
-	UINT8 char_to_encode(char c)
+	Instruction(ORIGIN_ADDR origin_addr);
+	~Instruction()
 	{
-		if((c>='0')&&(c<='9')){
-			return c-'0'+0x00;
-		}else if((c>='a')&&(c<='f'))
-			return c-'a'+0x0a;
-		else{
-			ASSERT(0);
-			return 0;
-		}
+		if(_dInst)
+			delete _dInst;
 	}
 
 	UINT16 get_inst_opcode()
 	{
-		ASSERT(is_already_disasm);
-		return _dInst.opcode;
+		return _dInst->opcode;
 	}
 
 	UINT8 get_operand_type(INT32 operand_idx)
 	{
-		ASSERT(is_already_disasm);
-		return _dInst.ops[operand_idx].type;
+		return _dInst->ops[operand_idx].type;
 	}
 
 	UINT8 get_reg_operand_index(INT32 operand_idx)
 	{
-		ASSERT(is_already_disasm);
-		return _dInst.ops[operand_idx].index;
+		return _dInst->ops[operand_idx].index;
 	}
 	
 	UINT8 get_inst_code_first_byte()
 	{
-		ASSERT(is_already_disasm && _dInst.size>=1);
-		return char_to_encode(_decodedInst.instructionHex.p[0])*16+char_to_encode(_decodedInst.instructionHex.p[1]);
+		ASSERT( inst_size>=1);
+		return inst_code[0];
 	}
 
 	UINT8 get_inst_code_second_byte()
 	{
-		ASSERT(is_already_disasm && _dInst.size>=2);
-		return char_to_encode(_decodedInst.instructionHex.p[2])*16+char_to_encode(_decodedInst.instructionHex.p[3]);
+		ASSERT(inst_size>=2);
+		return inst_code[1];
 	}
 		
 	void get_inst_code(UINT8 *encode, SIZE size)
 	{
-		ASSERT(is_already_disasm && size==_dInst.size);
-		UINT32 idx = 0;
-		while(_decodedInst.instructionHex.p[idx]!='\0'){
-			ASSERT(_decodedInst.instructionHex.p[idx+1]!='\0');
-			encode[idx/2] = char_to_encode(_decodedInst.instructionHex.p[idx])*16+char_to_encode(_decodedInst.instructionHex.p[idx+1]);
-			idx+=2;
-		}
-		ASSERT(idx/2==size);
+		ASSERT(size==inst_size);
+		memcpy(encode, inst_code, size);
 		return  ;
 	}
 	SIZE get_inst_size()
 	{
-		ASSERT(is_already_disasm);
-		return _dInst.size;
+		return inst_size;
 	}
 	
 	const char *get_inst_type()
 	{
-		ASSERT(is_already_disasm);
 		return type_to_string[inst_type];
 	}
 	ORIGIN_ADDR get_inst_origin_addr()
 	{
 		return _origin_instruction_addr;
 	}
-	ADDR get_inst_current_addr()
-	{
-		return _current_instruction_addr;
-	}
 	BOOL isRipRelative()
 	{
-		return _dInst.flags&FLAG_RIP_RELATIVE ? true : false;
+		return _dInst->flags&FLAG_RIP_RELATIVE ? true : false;
 	}
 	BOOL isOrdinaryInst()
 	{
-		ASSERT(is_already_disasm);
 		return inst_type==NONE_TYPE;
 	}
 	BOOL isCall()
 	{
-		ASSERT(is_already_disasm);
 		return (inst_type==INDIRECT_CALL_TYPE)||(inst_type==DIRECT_CALL_TYPE);
 	}
 	BOOL isIndirectCall()
 	{
-		ASSERT(is_already_disasm);
 		return inst_type==INDIRECT_CALL_TYPE;
 	}
 	BOOL isIndirectJmp()
 	{
-		ASSERT(is_already_disasm);
 		return inst_type==INDIRECT_JMP_TYPE;
 	}
 	BOOL isDirectCall()
 	{
-		ASSERT(is_already_disasm);
 		return inst_type==DIRECT_CALL_TYPE;
 	}
 	BOOL isDirectJmp()
 	{
-		ASSERT(is_already_disasm);
 		return inst_type==DIRECT_JMP_TYPE;
 	}
 	BOOL isConditionBranch()
 	{
-		ASSERT(is_already_disasm);
 		return inst_type==CND_BRANCH_TYPE;
 	}
 	BOOL isUnConditionBranch()
 	{
-		ASSERT(is_already_disasm);
 		return inst_type==DIRECT_JMP_TYPE || inst_type==INDIRECT_JMP_TYPE;
 	}
 	BOOL isBranch()
 	{
-		ASSERT(is_already_disasm);
 		return inst_type!=NONE_TYPE;
 	}
 	BOOL isRet()
 	{
-		ASSERT(is_already_disasm);
 		return inst_type==RET_TYPE;
 	}
 	BOOL isMovRspRbp()
 	{
-		ASSERT(is_already_disasm);
-		return (_dInst.opcode==I_MOV) && (_dInst.ops[0].type==O_REG) && \
-			(_dInst.ops[1].type==O_REG) && (_dInst.ops[0].index==R_RBP) && (_dInst.ops[1].index==R_RSP);
+		return (_dInst->opcode==I_MOV) && (_dInst->ops[0].type==O_REG) && \
+			(_dInst->ops[1].type==O_REG) && (_dInst->ops[0].index==R_RBP) && (_dInst->ops[1].index==R_RSP);
 	}
 	BOOL isMovRbpRsp()
 	{
-		ASSERT(is_already_disasm);
-		return (_dInst.opcode==I_MOV) && (_dInst.ops[0].type==O_REG) && \
-			(_dInst.ops[1].type==O_REG) && (_dInst.ops[0].index==R_RSP) && (_dInst.ops[1].index==R_RBP);
+		return (_dInst->opcode==I_MOV) && (_dInst->ops[0].type==O_REG) && \
+			(_dInst->ops[1].type==O_REG) && (_dInst->ops[0].index==R_RSP) && (_dInst->ops[1].index==R_RBP);
 	}
 	BOOL isLeave()
 	{
-		ASSERT(is_already_disasm);
-		return _dInst.opcode==I_LEAVE;
+		return _dInst->opcode==I_LEAVE;
 	}
 	BOOL isPushRbp()
 	{
-		ASSERT(is_already_disasm);
-		return (_dInst.opcode==I_PUSH) && (_dInst.ops[0].type==O_REG) && (_dInst.ops[0].index==R_RBP);
+		return (_dInst->opcode==I_PUSH) && (_dInst->ops[0].type==O_REG) && (_dInst->ops[0].index==R_RBP);
 	}
 	BOOL isPopRbp()
 	{
-		ASSERT(is_already_disasm);
-		return (_dInst.opcode==I_POP) && (_dInst.ops[0].type==O_REG) && (_dInst.ops[0].index==R_RBP);
+		return (_dInst->opcode==I_POP) && (_dInst->ops[0].type==O_REG) && (_dInst->ops[0].index==R_RBP);
 	}
 	ORIGIN_ADDR getBranchTargetOrigin()
 	{
-		ASSERT(is_already_disasm && (inst_type==DIRECT_JMP_TYPE || inst_type==CND_BRANCH_TYPE || inst_type==DIRECT_CALL_TYPE));
-		return INSTRUCTION_GET_TARGET(&_dInst);
+		ASSERT(inst_type==DIRECT_JMP_TYPE || inst_type==CND_BRANCH_TYPE || inst_type==DIRECT_CALL_TYPE);
+		return INSTRUCTION_GET_TARGET(_dInst);
 	}
 	ORIGIN_ADDR getBranchFallthroughOrigin()
 	{
-		ASSERT(is_already_disasm && inst_type!=NONE_TYPE && inst_type!=DIRECT_JMP_TYPE && inst_type!=INDIRECT_JMP_TYPE);
-		return _origin_instruction_addr + _dInst.size;
+		ASSERT(inst_type!=NONE_TYPE && inst_type!=DIRECT_JMP_TYPE && inst_type!=INDIRECT_JMP_TYPE);
+		return _origin_instruction_addr + inst_size;
 	}
-	ADDR getBranchFallthroughCurrent()
-	{
-		ASSERT(is_already_disasm && inst_type!=NONE_TYPE && inst_type!=DIRECT_JMP_TYPE && inst_type!=INDIRECT_JMP_TYPE);
-		return _current_instruction_addr + _dInst.size;
-	}
-	SIZE disassemable();
+	SIZE disassemable(SIZE security_size, const UINT8 * code);
 	SIZE copy_instruction(CODE_CACHE_ADDR curr_copy_addr, ORIGIN_ADDR origin_copy_addr, 
 		multimap<ORIGIN_ADDR, ORIGIN_ADDR> &map_origin_to_cc, map<ORIGIN_ADDR, ORIGIN_ADDR> &map_cc_to_origin);
 	void dump();
