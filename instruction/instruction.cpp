@@ -20,7 +20,8 @@ SIZE Instruction::copy_instruction(CODE_CACHE_ADDR curr_copy_addr, ORIGIN_ADDR o
 
 	if(_dInst->flags&FLAG_RIP_RELATIVE){
 		ASSERTM(_dInst->ops[0].type==O_SMEM || _dInst->ops[0].type==O_MEM 
-			|| _dInst->ops[1].type==O_SMEM || _dInst->ops[1].type==O_MEM, "unknown operand in RIP-operand!\n");
+			|| _dInst->ops[1].type==O_SMEM || _dInst->ops[1].type==O_MEM
+			||_dInst->ops[2].type==O_SMEM || _dInst->ops[2].type==O_MEM, "unknown operand in RIP-operand!\n");
 		INT64 offset_64 = origin_copy_addr - _origin_instruction_addr - _dInst->disp;
 		ASSERT((offset_64 > 0 ? offset_64 : -offset_64) < 0x7fffffff);
 		offset_64 = origin_copy_addr - _origin_instruction_addr;
@@ -67,13 +68,22 @@ SIZE Instruction::disassemable(SIZE security_size, const UINT8 * code)
 	//decompose the instruction
 	UINT32 dinstcount = 0;
 	_dInst = new _DInst();
-	distorm_decompose(&ci, _dInst, 1, &dinstcount);
+	if(code[0]==0xdf && code[1]==0xc0){
+		_dInst->addr = _origin_instruction_addr;
+		_dInst->size = 2;
+		dinstcount = 1;
+		_dInst->opcode = 0;
+		_dInst->flags = 0;
+	}else
+		distorm_decompose(&ci, _dInst, 1, &dinstcount);
 	ASSERT(dinstcount==1 && _dInst->addr==_origin_instruction_addr);	
 	//record inst code
 	inst_size = _dInst->size;
 	memcpy(inst_code, code, inst_size);
-	
-	init_instruction_type();
+	if(code[0]==0xdf && code[1]==0xc0)
+		inst_type = NONE_TYPE;
+	else
+		init_instruction_type();
 	
 	return inst_size;
 }
@@ -106,7 +116,8 @@ void Instruction::init_instruction_type()
 			inst_type = CND_BRANCH_TYPE;
 			break;
 		case FC_INT:
-			ASSERTM(0, "Instruction is INT. It is not allowed!\n");
+			inst_type = NONE_TYPE;
+			//ASSERTM(0, "Instruction is INT. It is not allowed!\n");
 			break;
 		default:
 			ASSERTM(0, "Illegall instruction!\n");
@@ -116,11 +127,15 @@ void Instruction::init_instruction_type()
 
 void Instruction::dump()
 {
-	_DecodedInst  decodedInst;
-	UINT32 decodedInstsCount = 0;
-	distorm_decode(_origin_instruction_addr, inst_code, inst_size, Decode64Bits, &decodedInst, inst_size, &decodedInstsCount);
-	ASSERT(decodedInstsCount==1);
-	PRINT("%12lx (%02d) %-24s  %s%s%s\n", decodedInst.offset, decodedInst.size, decodedInst.instructionHex.p,\
-		(char*)decodedInst.mnemonic.p, decodedInst.operands.length != 0 ? " " : "", (char*)decodedInst.operands.p);
+	if(inst_size==2 && inst_code[0]==0xdf && inst_code[1]==0xc0){
+		PRINT("%12lx (02) dfc0 %-20s FFREEP ST0\n", _origin_instruction_addr, " ");
+	}else{
+		_DecodedInst  decodedInst;
+		UINT32 decodedInstsCount = 0;
+		distorm_decode(_origin_instruction_addr, inst_code, inst_size, Decode64Bits, &decodedInst, inst_size, &decodedInstsCount);
+		ASSERT(decodedInstsCount==1);
+		PRINT("%12lx (%02d) %-24s  %s%s%s\n", decodedInst.offset, decodedInst.size, decodedInst.instructionHex.p,\
+			(char*)decodedInst.mnemonic.p, decodedInst.operands.length != 0 ? " " : "", (char*)decodedInst.operands.p);
+	}
 }
 

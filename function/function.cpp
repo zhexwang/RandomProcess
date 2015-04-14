@@ -4,11 +4,13 @@
 Function::Function(CodeSegment *code_segment, string name, ORIGIN_ADDR origin_function_base, ORIGIN_SIZE origin_function_size, CodeCache *cc)
 	:_code_segment(code_segment), _function_name(name), _origin_function_base(origin_function_base), _function_size(origin_function_size)
 	, _random_cc_start(0), _random_cc_origin_start(0), _random_cc_size(0), code_cache(cc), is_already_disasm(false), is_already_split_into_bb(false)
-	, is_already_finish_random(false) , is_already_finish_intercept(false), is_already_finish_erase(false), is_function_can_be_random(true)
+	, is_already_finish_random(false) , is_already_finish_intercept(false), is_already_finish_erase(false), is_function_can_be_random(false)
 	, is_already_finish_analysis_stack(false)
 	
 {
 	_function_base = code_segment->convert_origin_process_addr_to_this(_origin_function_base);
+	entry_list.clear();
+	entry_list.push_back((ENTRY_ITEM){origin_function_base, 0});
 }
 Function::~Function(){
 	;
@@ -55,7 +57,7 @@ void Function::dump_bb_origin()
 	}else
 		ERR("Do not split into BB!\n");
 }
-void Function::disassemble(map<ORIGIN_ADDR, Instruction*> &map_origin_addr_to_inst)
+void Function::disassemble()
 {
 	if(is_already_disasm)
 		return ;
@@ -65,8 +67,12 @@ void Function::disassemble(map<ORIGIN_ADDR, Instruction*> &map_origin_addr_to_in
 
 	while(security_size>1){
 		Instruction *instr = new Instruction(origin_addr);
-		map_origin_addr_to_inst.insert(make_pair(origin_addr, instr));
 		SIZE instr_size = instr->disassemable(security_size, (UINT8*)current_addr);
+		if(instr->isDirectJmp() || instr->isConditionBranch()){
+			ORIGIN_ADDR target_addr = instr->getBranchTargetOrigin();
+			if(!is_in_function(target_addr))
+				_code_segment->direct_profile_func_entry.push_back(target_addr);
+		}
 		origin_addr += instr_size;
 		current_addr += instr_size;
 		security_size -= instr_size;
@@ -78,45 +84,80 @@ void Function::disassemble(map<ORIGIN_ADDR, Instruction*> &map_origin_addr_to_in
 
 void Function::intercept_to_random_function()
 {
+	if(!is_function_can_be_random)
+		return ;
+
 	ASSERT(is_already_finish_random && _random_cc_origin_start!=0 && _random_cc_size!=0 && _random_cc_start!=0);
-	INT64 offset = _random_cc_origin_start - _origin_function_base - 0x5;
-	ASSERT((offset > 0 ? offset : -offset) < 0x7fffffff);
-	if(_function_size>=5){
-		ADDR ptr = _function_base;
-		JMP_REL32(offset,ptr);
-		is_already_finish_intercept = true;
-		is_function_can_be_random = true;
-	}else
-		is_function_can_be_random = false;
+	ASSERT(!is_already_finish_intercept);
+	
+	vector<INT64> offset;
+	for(INT32 idx=0; idx<(INT32)entry_list.size(); idx++){
+		ORIGIN_ADDR random_target = entry_list[idx].random_entry - _random_cc_start + _random_cc_origin_start;
+		INT64 Offset = random_target - entry_list[idx].origin_entry - 0x5;
+		ASSERT((Offset > 0 ? Offset : -Offset) < 0x7fffffff);
+		offset.push_back(Offset);
+	}
+
+	for(INT32 idx=0; idx<(INT32)entry_list.size(); idx++){
+		ADDR curr_entry = entry_list[idx].origin_entry - _origin_function_base + _function_base;
+		JMP_REL32(offset[idx], curr_entry);
+	}
+	is_already_finish_intercept = true;
 }
 
 void Function::erase_function()
 {
 	if(!is_function_can_be_random)
 		return ;
-	ASSERT(is_already_finish_intercept);
+
 	if(is_already_finish_erase)
 		return ;
-	ADDR erase_start = _function_base+5;
+	
+	ADDR erase_start = _function_base;
 	ADDR erase_end = _function_base+_function_size;
 	for(ADDR erase_item = erase_start; erase_item<erase_end; erase_item++)
 		INV_INS_1(erase_item);
+	
 	is_already_finish_erase = true;
 }
 
-void Function::random_function(MAP_ORIGIN_FUNCTION *func_map, multimap<ORIGIN_ADDR, ORIGIN_ADDR> &map_origin_to_cc, 
+BOOL Function::check_random()
+{
+	INT32 entry_num = entry_list.size();
+
+	if(entry_num==1)
+		return _function_size>=5 ? true : false; 
+
+	for(INT32 idx=0; idx<(entry_num-1); idx++){
+		for(INT32 idx2 = idx+1; idx2<entry_num; idx2++){
+			INT32 len = entry_list[idx].origin_entry - entry_list[idx2].origin_entry;
+			if(len>-5 && len<5)
+				return false;
+		}
+
+		INT32 len_end = entry_list[idx].origin_entry - (_origin_function_base+_function_size);
+		if(len_end>-5 && len_end<5)
+			return false;
+	}
+
+	return true ;
+}
+
+void Function::random_function(multimap<ORIGIN_ADDR, ORIGIN_ADDR> &map_origin_to_cc, 
 		map<ORIGIN_ADDR, ORIGIN_ADDR> &map_cc_to_origin)
 {
 	//get cc info
 	CODE_CACHE_ADDR cc_curr_addr = 0;
 	ORIGIN_ADDR cc_origin_addr = 0;
-	map<ORIGIN_ADDR, Instruction*> map_origin_addr_to_inst, temp;
 	code_cache->getCCCurrent(cc_curr_addr, cc_origin_addr);
 	// 1.disasm
-	disassemble(map_origin_addr_to_inst);
+	ASSERT(is_already_disasm);
+	is_function_can_be_random = check_random();
+	ASSERT(is_function_can_be_random);
+	if(!is_function_can_be_random)
+		return ;
 	// 2.split into bb
-	split_into_basic_block(func_map, map_origin_addr_to_inst);
-	map_origin_addr_to_inst.swap(temp);
+	split_into_basic_block();
 	// 3.random
 	ASSERT(is_already_split_into_bb);
 	vector<RELOCATION_ITEM> relocation, relocation_temp;
@@ -131,8 +172,16 @@ void Function::random_function(MAP_ORIGIN_FUNCTION *func_map, multimap<ORIGIN_AD
 		cc_origin_addr += bb_copy_size;
 		//random some insts in BB
 		bb_copy_size = (*ite)->copy_random_insts(cc_curr_addr, cc_origin_addr, relocation, map_origin_to_cc, map_cc_to_origin);
+		//record function entry
+		for(INT32 idx=0; idx<(INT32)entry_list.size(); idx++){
+			if(entry_list[idx].origin_entry==(*ite)->get_origin_addr_before_random())
+				entry_list[idx].random_entry = cc_curr_addr;
+		}
 		_random_cc_size += bb_copy_size;
 	}
+	for(INT32 idx=0; idx<(INT32)entry_list.size(); idx++)
+		ASSERT(entry_list[idx].random_entry!=0);
+	
 	// 3.2 relocate the address and finish 
 	for(vector<RELOCATION_ITEM>::iterator iter = relocation.begin(); iter!=relocation.end(); iter++){
 		RELOCATION_ITEM reloc_info = *iter;
@@ -141,6 +190,11 @@ void Function::random_function(MAP_ORIGIN_FUNCTION *func_map, multimap<ORIGIN_AD
 		else if(reloc_info.type==REL32_BB_PTR){
 			ORIGIN_ADDR target_bb_entry = ((BasicBlock*)reloc_info.target_bb_ptr)->get_origin_addr_after_random();
 			INT64 offset = target_bb_entry - reloc_info.origin_base_addr;
+			ASSERT((offset > 0 ? offset : -offset) < 0x7fffffff);
+			*(UINT32*)(reloc_info.relocate_pos) = offset;
+		}else if(reloc_info.type==REL32_BB_PTR_A_1){
+			ORIGIN_ADDR target_bb_entry = ((BasicBlock*)reloc_info.target_bb_ptr)->get_origin_addr_after_random();
+			INT64 offset = target_bb_entry + 1 - reloc_info.origin_base_addr;
 			ASSERT((offset > 0 ? offset : -offset) < 0x7fffffff);
 			*(UINT32*)(reloc_info.relocate_pos) = offset;
 		}else if(reloc_info.type==ABSOLUTE_BB_PTR)
@@ -160,16 +214,15 @@ void Function::random_function(MAP_ORIGIN_FUNCTION *func_map, multimap<ORIGIN_AD
 	return ;
 }
 
-void Function::analysis_stack(MAP_ORIGIN_FUNCTION *func_map, map<ORIGIN_ADDR, STACK_TYPE> stack_map)
+void Function::analysis_stack(map<ORIGIN_ADDR, STACK_TYPE> stack_map)
 {
 	if(is_already_finish_analysis_stack)
 		return;
-	map<ORIGIN_ADDR, Instruction*> map_origin_addr_to_inst, temp;
+	;
 	// 1.disasm
-	disassemble(map_origin_addr_to_inst);
+	disassemble();
 	// 2.split into bb
-	split_into_basic_block(func_map, map_origin_addr_to_inst);
-	map_origin_addr_to_inst.swap(temp);
+	split_into_basic_block();
 	
 	BOOL isRbpStored = false;
 	BOOL isMov = false;
@@ -254,6 +307,8 @@ void Function::flush_function_cc()
 	//flush record in bb
 	for(vector<BasicBlock*>::iterator iter = bb_list.begin(); iter!=bb_list.end(); iter++)
 		(*iter)->flush();
+	for(INT32 idx=0; idx<(INT32)entry_list.size(); idx++)
+		entry_list[idx].random_entry = 0;
 }
 
 typedef struct item{
@@ -264,12 +319,25 @@ typedef struct item{
 	BOOL isBBEnd;
 }Item;
 
-void Function::split_into_basic_block(MAP_ORIGIN_FUNCTION *func_map, map<ORIGIN_ADDR, Instruction*> &map_origin_addr_to_inst)
+BasicBlock *Function::find_bb_by_cc(ORIGIN_ADDR addr)
+{
+	for(vector<BasicBlock*>::iterator iter = bb_list.begin(); iter!=bb_list.end(); iter++){
+		if((*iter)->is_in_bb_cc(addr))
+			return *iter;
+	}
+	return NULL;
+}
+
+void Function::split_into_basic_block()
 {
 	if(is_already_split_into_bb)
 		return ;
 	ASSERT(is_already_disasm);
+	map<ORIGIN_ADDR, Instruction*> map_origin_addr_to_inst, temp;
 	SIZE inst_sum = _origin_function_instructions.size();
+	for(SIZE idx=0; idx<inst_sum; idx++){
+		map_origin_addr_to_inst.insert(make_pair(_origin_function_instructions[idx]->get_inst_origin_addr(), _origin_function_instructions[idx]));
+	}
 	Item *array = new Item[inst_sum];
 	//init
 	for(SIZE k=0; k<inst_sum; k++){
@@ -292,15 +360,23 @@ void Function::split_into_basic_block(MAP_ORIGIN_FUNCTION *func_map, map<ORIGIN_
 			Instruction *target_inst = target_iter==map_origin_addr_to_inst.end() ? NULL : target_iter->second;
 			if(target_inst)
 				array[idx].targetList.push_back(target_inst);
-			else
-				ASSERTM(0, "%.8lx  find none target in condtionjmp!\n", curr_inst->get_inst_origin_addr());
+			else{
+				if(is_in_function(target_addr)){
+					//handle inst : je 1f; lock 1f: andl...
+					map<ORIGIN_ADDR, Instruction*>::iterator target_iter = map_origin_addr_to_inst.find(target_addr-1);
+					Instruction *target_inst = target_iter==map_origin_addr_to_inst.end() ? NULL : target_iter->second;
+					ASSERT(target_inst && target_inst->get_inst_code_first_byte()==0xf0);//lock prefix
+					array[idx].targetList.push_back(target_inst);
+				}else
+					;//ASSERTM(0, "%.8lx  find none target in condtionjmp!\n", curr_inst->get_inst_origin_addr());
+			}
 			array[idx].isBBEnd = true;
 			//add fallthrough inst
 			if((iter+1)!=_origin_function_instructions.end()){
 				array[idx].fallthroughInst = *(iter+1);
 				array[idx+1].isBBEntry = true;
 			}else{
-				ASSERTM(0, "%.8lx  fallthrough inst out of function!\n", curr_inst->get_inst_origin_addr());
+				ERR("%.8lx  fallthrough inst out of function!\n", curr_inst->get_inst_origin_addr());
 				array[idx].fallthroughInst = NULL;
 			}
 		}else if(curr_inst->isDirectJmp()){
@@ -328,14 +404,12 @@ void Function::split_into_basic_block(MAP_ORIGIN_FUNCTION *func_map, map<ORIGIN_
 			BOOL call_out_of_func = false;
 			vector<ORIGIN_ADDR> *target_addr_list = _code_segment->find_target_by_inst_addr(curr_inst->get_inst_origin_addr());
 			for(vector<ORIGIN_ADDR>::iterator it = target_addr_list->begin(); it!=target_addr_list->end(); it++){
-			map<ORIGIN_ADDR, Instruction*>::iterator target_iter = map_origin_addr_to_inst.find(*it);
-			Instruction *target_inst = target_iter==map_origin_addr_to_inst.end() ? NULL : target_iter->second;
+				map<ORIGIN_ADDR, Instruction*>::iterator target_iter = map_origin_addr_to_inst.find(*it);
+				Instruction *target_inst = target_iter==map_origin_addr_to_inst.end() ? NULL : target_iter->second;
 				if(target_inst){
 					array[idx].targetList.push_back(target_inst);
 				}else{
-					MAP_ORIGIN_FUNCTION_ITERATOR ret_iter = func_map->find(*it);
-					ASSERTM(ret_iter!=func_map->end(), \
-						"%.8lx  target inst is out of function && target is not function entry!\n", curr_inst->get_inst_origin_addr());
+					ASSERT(!is_in_function(*it));
 					call_out_of_func = true;
 				}
 			}
@@ -393,7 +467,7 @@ void Function::split_into_basic_block(MAP_ORIGIN_FUNCTION *func_map, map<ORIGIN_
 	array[0].isBBEntry = true;
 	array[idx-1].isBBEnd = true;
 
-	
+
 	//calculate the BB entry
 	for(idx = 0;idx<(INT32)inst_sum; idx++){
 		for(vector<Instruction*>::iterator it = array[idx].targetList.begin(); it!=array[idx].targetList.end(); it++){
@@ -404,7 +478,19 @@ void Function::split_into_basic_block(MAP_ORIGIN_FUNCTION *func_map, map<ORIGIN_
 				array[targetIdx-1].isBBEnd = true;
 			}
 		}
-	}/*
+	}
+
+	for(INT32 array_idx = 0; array_idx<(INT32)inst_sum; array_idx++){
+		ORIGIN_ADDR inst_addr = array[array_idx].inst->get_inst_origin_addr();
+		if(is_entry(inst_addr) && !array[array_idx].isBBEntry){
+			array[array_idx].isBBEntry = true;
+			ASSERT(!array[array_idx-1].isBBEnd);
+			array[array_idx-1].isBBEnd = true;
+		}
+	}
+
+
+	/*
 	for(SIZE i=0; i<inst_sum; i++){
 		INFO("%.8lx Entry:%d End: %d\n", array[i].inst->get_inst_origin_addr(), array[i].isBBEntry, array[i].isBBEnd);
 	}*/
@@ -451,6 +537,7 @@ void Function::split_into_basic_block(MAP_ORIGIN_FUNCTION *func_map, map<ORIGIN_
 	delete [] array;
 	inst_map_idx.swap(inst_map_idx_temp);
 	inst_bb_map.swap(inst_bb_map_temp);
+	map_origin_addr_to_inst.swap(temp);
 	
 	is_already_split_into_bb = true;
 }

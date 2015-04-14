@@ -16,7 +16,7 @@ MapInst *map_inst_info = NULL;
 ShareStack *main_share_stack = NULL;
 Communication *communication = NULL;
 CODE_SEG_MAP_ORIGIN_FUNCTION CSfunctionMapOriginList;
-CODE_SEG_MAP_FUNCTION CSfunctionMapList;
+extern void split_function_from_target_branch();
 
 void readelf_to_find_all_functions()
 {
@@ -25,13 +25,10 @@ void readelf_to_find_all_functions()
 			//map origin
 			MAP_ORIGIN_FUNCTION *map_origin_function = new MAP_ORIGIN_FUNCTION();
 			CSfunctionMapOriginList.insert(CODE_SEG_MAP_ORIGIN_FUNCTION_PAIR(*it, map_origin_function));
-			//map current 
-			MAP_FUNCTION *map_function = new MAP_FUNCTION();
-			CSfunctionMapList.insert(CODE_SEG_MAP_FUNCTION_PAIR(*it, map_function));
 			//read elf
 			ReadElf *read_elf = new ReadElf(*it);
 			CodeCache *code_cache = (*it)->code_cache;
-			read_elf->scan_and_record_function(map_function, map_origin_function, code_cache);
+			read_elf->scan_and_record_function(map_origin_function, code_cache);
 			delete read_elf;
 		}
 	}
@@ -44,7 +41,7 @@ void analysis_all_functions_stack()
 		if(!it->first->isSO){
 			for(MAP_ORIGIN_FUNCTION_ITERATOR iter = it->second->begin(); iter!=it->second->end(); iter++){
 				Function *func = iter->second;
-				func->analysis_stack(it->second, ShareStack::stack_map);
+				func->analysis_stack(ShareStack::stack_map);
 				//func->dump_function_origin();
 			}
 		}
@@ -55,41 +52,27 @@ void analysis_all_functions_stack()
 void random_all_functions()
 {
 	for(CODE_SEG_MAP_ORIGIN_FUNCTION_ITERATOR it = CSfunctionMapOriginList.begin(); it!=CSfunctionMapOriginList.end(); it++){
-		if(!it->first->isSO){
+		if(it->first->isSO && it->first->file_path.find("lib/libc.so.6")!=string::npos){
 			for(MAP_ORIGIN_FUNCTION_ITERATOR iter = it->second->begin(); iter!=it->second->end(); iter++){
 				Function *func = iter->second;
-				//if(func->get_function_name() == "main"){
-					func->random_function(it->second, map_inst_info->get_curr_mapping_oc(), map_inst_info->get_curr_mapping_co());
-					//INFO("%s\n", func->get_function_name().c_str());
-				//}
+				if(func->get_function_name().find("__memcpy_ssse3_back")!=string::npos)
+					func->random_function(map_inst_info->get_curr_mapping_oc(), map_inst_info->get_curr_mapping_co());
 			}
 		}
 	}
 	return ;
 }
 
-void intercept_all_functions()
+void erase_and_intercept_all_functions()
 {
 	for(CODE_SEG_MAP_ORIGIN_FUNCTION_ITERATOR it = CSfunctionMapOriginList.begin(); it!=CSfunctionMapOriginList.end(); it++){
-		if(!it->first->isSO){
+		if(it->first->isSO && it->first->file_path.find("lib/libc.so.6")!=string::npos){
 			for(MAP_ORIGIN_FUNCTION_ITERATOR iter = it->second->begin(); iter!=it->second->end(); iter++){
 				Function *func = iter->second;
-				//if(func->get_function_name() == "main")
+				if(func->get_function_name().find("__memcpy_ssse3_back")!=string::npos){
+					func->erase_function();	
 					func->intercept_to_random_function();
-			}
-		}
-	}
-	return ;
-}
-
-void erase_all_functions()
-{
-	for(CODE_SEG_MAP_ORIGIN_FUNCTION_ITERATOR it = CSfunctionMapOriginList.begin(); it!=CSfunctionMapOriginList.end(); it++){
-		if(!it->first->isSO){
-			for(MAP_ORIGIN_FUNCTION_ITERATOR iter = it->second->begin(); iter!=it->second->end(); iter++){
-				Function *func = iter->second;
-				//if(func->get_function_name() == "main")
-					func->erase_function();			
+				}
 			}
 		}
 	}
@@ -107,6 +90,18 @@ void flush()
 		}
 	}
 	return ;
+}
+
+Function *find_function_by_origin_cc(ORIGIN_ADDR addr)
+{
+	for(CODE_SEG_MAP_ORIGIN_FUNCTION_ITERATOR it = CSfunctionMapOriginList.begin(); it!=CSfunctionMapOriginList.end(); it++){
+		for(MAP_ORIGIN_FUNCTION_ITERATOR iter = it->second->begin(); iter!=it->second->end(); iter++){
+			Function *func = iter->second;
+			if(func->is_in_function_cc(addr))
+				return func;
+		}
+	}
+	return NULL;
 }
 
 void relocate_retaddr_and_pc()
@@ -134,8 +129,10 @@ int main(int argc, const char *argv[])
 	//dump_code_segment();
 	// 4.read elf to find function
 	readelf_to_find_all_functions();
+	// 4.1 handle so function internal
+	split_function_from_target_branch();
 	// 5.find all stack map
-	analysis_all_functions_stack();
+	//analysis_all_functions_stack();
 	// loop for random
 	//while(1){
 		// 5.flush
@@ -145,10 +142,8 @@ int main(int argc, const char *argv[])
 		random_all_functions();
 		// 7.send signal to stop the process
 		//communication->stop_process();
-		// 8.intercept
-		intercept_all_functions();
-		// 9.erase
-		erase_all_functions();
+		// 9.erase and intercept
+		erase_and_intercept_all_functions();
 		// 10.relocate
 		//relocate_retaddr_and_pc();
 		// 11.continue to run

@@ -33,6 +33,13 @@ public:
 	{
 		;
 	}
+	BOOL is_in_bb_cc(ORIGIN_ADDR addr)
+	{
+		if(addr>=_origin_copy_addr && addr<(_origin_copy_addr+_generate_cc_size))
+			return true;
+		else
+			return false;
+	}
 	ORIGIN_ADDR get_origin_addr_before_random()
 	{
 		return instruction_vec.front()->get_inst_origin_addr();

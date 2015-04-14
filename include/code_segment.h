@@ -31,6 +31,8 @@ public:
 	//profile data
 	multimap<ORIGIN_ADDR, ORIGIN_ADDR> indirect_inst_map;
 	typedef multimap<ORIGIN_ADDR, ORIGIN_ADDR>::iterator INDIRECT_MAP_ITERATOR;
+	//direct inst target
+	vector<ORIGIN_ADDR> direct_profile_func_entry;
 public:
 	CodeSegment(ORIGIN_ADDR regionStart, SIZE regionSize, string codePath, string shmName, BOOL isCodeCache, BOOL isStack)
 		:code_start(regionStart), code_size(regionSize), file_path(codePath), shm_name(shmName),is_code_cache(isCodeCache), is_stack(isStack)
@@ -99,6 +101,10 @@ public:
 			ret->push_back(iter->second);
 		}
 		return ret;
+	}
+	BOOL is_in_cs(ORIGIN_ADDR addr)
+	{
+		return addr>=code_start && addr<(code_start+code_size);
 	}
 };
 
