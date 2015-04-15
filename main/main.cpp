@@ -17,6 +17,7 @@ ShareStack *main_share_stack = NULL;
 Communication *communication = NULL;
 CODE_SEG_MAP_ORIGIN_FUNCTION CSfunctionMapOriginList;
 extern void split_function_from_target_branch();
+extern BOOL need_omit_function(string function_name);
 
 void readelf_to_find_all_functions()
 {
@@ -53,9 +54,11 @@ void random_all_functions()
 {
 	for(CODE_SEG_MAP_ORIGIN_FUNCTION_ITERATOR it = CSfunctionMapOriginList.begin(); it!=CSfunctionMapOriginList.end(); it++){
 		if(it->first->isSO && it->first->file_path.find("lib/libc.so.6")!=string::npos){
+			INFO("Libc base: 0x%lx\n", it->first->code_start);
 			for(MAP_ORIGIN_FUNCTION_ITERATOR iter = it->second->begin(); iter!=it->second->end(); iter++){
 				Function *func = iter->second;
-				func->random_function(map_inst_info->get_curr_mapping_oc(), map_inst_info->get_curr_mapping_co());
+				if(!need_omit_function(func->get_function_name()))
+					func->random_function(map_inst_info->get_curr_mapping_oc(), map_inst_info->get_curr_mapping_co());
 			}
 		}
 	}
@@ -68,8 +71,10 @@ void erase_and_intercept_all_functions()
 		if(it->first->isSO && it->first->file_path.find("lib/libc.so.6")!=string::npos){
 			for(MAP_ORIGIN_FUNCTION_ITERATOR iter = it->second->begin(); iter!=it->second->end(); iter++){
 				Function *func = iter->second;
-				func->erase_function();	
-				func->intercept_to_random_function();
+				if(!need_omit_function(func->get_function_name())){
+					func->erase_function();	
+					func->intercept_to_random_function();
+				}
 			}
 		}
 	}

@@ -9,7 +9,23 @@ const INDIRECT_ITEM ReadLog::indirect_profile_by_hand[] = {
 	{0x13b155, 0x13c992, LIBC, LIBC},
 	{0x13ae55, 0x13cd2c, LIBC, LIBC},
 	{0x13afd5, 0x13cc1c, LIBC, LIBC},
-	{0x13aa26, 0x13ca1c, LIBC, LIBC},
+	{0x13aa26, 0x13ca1c, LIBC, LIBC},//memcpy_sse2_back
+	{0x13b2d5, 0x13cbfe, LIBC, LIBC},
+	{0x13c055, 0x13cc6a, LIBC, LIBC},
+	{0x13aa26, 0x13c8c0, LIBC, LIBC},
+	{0x13c055, 0x13cd7a, LIBC, LIBC},
+	{0x13bbd5, 0x13cbfe, LIBC, LIBC},
+	{0x13bbd5, 0x13c6d4, LIBC, LIBC},
+	{0x13ae55, 0x13c5fc, LIBC, LIBC},
+	{0x13b2d5, 0x13c89c, LIBC, LIBC},
+	{0x13c1d5, 0x13cc12, LIBC, LIBC},
+	{0x13acd5, 0x13c8c0, LIBC, LIBC},
+	{0x13afd5, 0x13c86a, LIBC, LIBC},
+	{0x13ab98, 0x13cd70, LIBC, LIBC},
+	{0x13acd5, 0x13c9e0, LIBC, LIBC},
+	{0x13aa26, 0x13c9e0, LIBC, LIBC},
+	{0x13aa26, 0x13c8e0, LIBC, LIBC},
+	{0x13bd56, 0x13ca88, LIBC, LIBC},//memcpy_sse3_back
 	{0, 0, LIB_NONE, LIB_NONE},
 };
 

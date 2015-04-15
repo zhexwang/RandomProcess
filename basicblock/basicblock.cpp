@@ -131,7 +131,7 @@ SIZE BasicBlock::random_unordinary_inst(Instruction *inst, CODE_CACHE_ADDR curr_
 			INT64 offset = target_addr - origin_target_addr - 0x5;
 			ASSERT((offset > 0 ? offset : -offset) < 0x7fffffff);
 			JMP_REL32(offset, cc_start);
-			ERR("JMP(0x%lx) no target(0x%lx)!\n", inst->get_inst_origin_addr(), target_addr);
+			//ERR("JMP(0x%lx) no target(0x%lx)!\n", inst->get_inst_origin_addr(), target_addr);
 			//record mapping
 			map_origin_to_cc.insert(make_pair(inst_origin_addr, origin_target_addr));
 			map_cc_to_origin.insert(make_pair(origin_target_addr, inst_origin_addr));
@@ -139,7 +139,7 @@ SIZE BasicBlock::random_unordinary_inst(Instruction *inst, CODE_CACHE_ADDR curr_
 	}else if(inst->isIndirectJmp()){
 		ASSERT(!fallthrough_bb);
 		if(target_bb_vec.size()==0){
-			ERR("JMPIN(0x%lx) no target!\n", inst->get_inst_origin_addr());
+			//ERR("JMPIN(0x%lx) no target!\n", inst->get_inst_origin_addr());
 			return inst->copy_instruction(curr_target_addr, origin_target_addr, map_origin_to_cc, map_cc_to_origin);
 		}else{
 			BOOL ret =  can_hash_low_32bits(target_bb_vec);
@@ -260,7 +260,7 @@ SIZE BasicBlock::random_unordinary_inst(Instruction *inst, CODE_CACHE_ADDR curr_
 	 				RELOCATION_ITEM target_reloc_info = {type, (ADDR)ptr, origin_target_addr+6, (ADDR)target_bb_vec[0]};
 					relocation.push_back(target_reloc_info);
 				}else{
-					ERR("CND Branch(0x%lx) out of function, target is 0x%lx!\n", inst->get_inst_origin_addr(), inst->getBranchTargetOrigin());
+					//ERR("CND Branch(0x%lx) out of function, target is 0x%lx!\n", inst->get_inst_origin_addr(), inst->getBranchTargetOrigin());
 					*(ptr1++) = inst->getBranchTargetOrigin() - (origin_target_addr+6);
 				}
 				//record first instruction mapping

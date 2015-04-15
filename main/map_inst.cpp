@@ -1,5 +1,11 @@
 #include "map_inst.h"
 
+ORIGIN_ADDR MapInst::get_curr_addr_by_origin(ORIGIN_ADDR addr)
+{
+	MAP_CO_ITERATOR ret = map_cc_to_origin[curr_idx].find(addr);
+	return ret==map_cc_to_origin[curr_idx].end() ? 0 : ret->second;
+}
+
 ORIGIN_ADDR MapInst::get_new_addr_from_old(ORIGIN_ADDR old_inst_addr, BOOL is_in_cc)
 {
 	if(is_in_cc){

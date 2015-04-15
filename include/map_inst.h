@@ -37,7 +37,8 @@ public:
 	map<ORIGIN_ADDR, ORIGIN_ADDR> &get_curr_mapping_co()
 	{
 		return map_cc_to_origin[curr_idx];
-	}	
+	}
+	ORIGIN_ADDR get_curr_addr_by_origin(ORIGIN_ADDR addr);
 	void flush()
 	{
 		curr_idx = curr_idx==0 ? 1 : 0;

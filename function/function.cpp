@@ -73,6 +73,11 @@ void Function::disassemble()
 			if(!is_in_function(target_addr))
 				_code_segment->direct_profile_func_entry.push_back(target_addr);
 		}
+		if(instr->isIndirectJmp()){
+			CodeSegment::INDIRECT_MAP_ITERATOR ret = _code_segment->indirect_inst_map.find(instr->get_inst_origin_addr());
+			if(ret==_code_segment->indirect_inst_map.end())
+				;//YELLOW("JMPIN instruction does not have profile information!\n");
+		}
 		origin_addr += instr_size;
 		current_addr += instr_size;
 		security_size -= instr_size;
@@ -385,7 +390,7 @@ void Function::split_into_basic_block()
 				array[idx].fallthroughInst = *(iter+1);
 				array[idx+1].isBBEntry = true;
 			}else{
-				ERR("%.8lx  fallthrough inst out of function!\n", curr_inst->get_inst_origin_addr());
+				//PRINT("%.8lx  fallthrough inst out of function!\n", curr_inst->get_inst_origin_addr());
 				array[idx].fallthroughInst = NULL;
 			}
 		}else if(curr_inst->isDirectJmp()){
@@ -471,8 +476,8 @@ void Function::split_into_basic_block()
 		}
 		
 		idx++;
-
 	}
+	
 	array[0].isBBEntry = true;
 	array[idx-1].isBBEnd = true;
 
