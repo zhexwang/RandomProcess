@@ -164,7 +164,7 @@ void Function::random_function(multimap<ORIGIN_ADDR, ORIGIN_ADDR> &map_origin_to
 	// 3.1 copy random insts
 	ASSERT((_random_cc_start==0) && (_random_cc_origin_start==0) && (_random_cc_size==0));
 	
-	SIZE bb_copy_size = 0;
+	SIZE bb_copy_size = 0;	
 	_random_cc_start = cc_curr_addr;
 	_random_cc_origin_start = cc_origin_addr;
 	for(vector<BasicBlock *>::iterator ite = bb_list.begin(); ite!=bb_list.end(); ite++){
@@ -323,6 +323,15 @@ BasicBlock *Function::find_bb_by_cc(ORIGIN_ADDR addr)
 {
 	for(vector<BasicBlock*>::iterator iter = bb_list.begin(); iter!=bb_list.end(); iter++){
 		if((*iter)->is_in_bb_cc(addr))
+			return *iter;
+	}
+	return NULL;
+}
+
+BasicBlock *Function::find_bb_by_addr(ORIGIN_ADDR addr)
+{
+	for(vector<BasicBlock*>::iterator iter = bb_list.begin(); iter!=bb_list.end(); iter++){
+		if((*iter)->is_in_bb_addr(addr))
 			return *iter;
 	}
 	return NULL;

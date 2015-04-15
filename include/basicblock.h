@@ -15,7 +15,7 @@ class BasicBlock
 {
 private:
 	vector<Instruction *> instruction_vec;
-	//vector<BasicBlock *> prev_bb_vec;
+	vector<BasicBlock *> prev_bb_vec;
 	BasicBlock *fallthrough_bb;
 	vector<BasicBlock *> target_bb_vec;
 	CODE_CACHE_ADDR _curr_copy_addr;
@@ -39,6 +39,14 @@ public:
 			return true;
 		else
 			return false;
+	}
+	BOOL is_in_bb_addr(ORIGIN_ADDR addr)
+	{
+		for(vector<Instruction*>::iterator iter = instruction_vec.begin();  iter!=end(); iter++){
+			if(addr==(*iter)->get_inst_origin_addr())
+				return true;			
+		}
+		return false;
 	}
 	ORIGIN_ADDR get_origin_addr_before_random()
 	{
@@ -75,7 +83,7 @@ public:
 	{
 		return instruction_vec.end();
 	}
-	/*
+	
 	BB_ITER prev_begin()
 	{
 		return prev_bb_vec.begin();
@@ -84,7 +92,7 @@ public:
 	{
 		return prev_bb_vec.end();
 	}
-	*/
+	
 	BB_ITER target_begin()
 	{
 		return target_bb_vec.begin();
@@ -107,7 +115,7 @@ public:
 	}
 	void add_prev_bb(BasicBlock *prev_bb)
 	{
-		;//prev_bb_vec.push_back(prev_bb);
+		prev_bb_vec.push_back(prev_bb);
 	}
 	void add_target_bb(BasicBlock *target_bb)
 	{

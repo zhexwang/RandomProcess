@@ -55,8 +55,7 @@ void random_all_functions()
 		if(it->first->isSO && it->first->file_path.find("lib/libc.so.6")!=string::npos){
 			for(MAP_ORIGIN_FUNCTION_ITERATOR iter = it->second->begin(); iter!=it->second->end(); iter++){
 				Function *func = iter->second;
-				if(func->get_function_name().find("__memcpy_ssse3_back")!=string::npos)
-					func->random_function(map_inst_info->get_curr_mapping_oc(), map_inst_info->get_curr_mapping_co());
+				func->random_function(map_inst_info->get_curr_mapping_oc(), map_inst_info->get_curr_mapping_co());
 			}
 		}
 	}
@@ -69,10 +68,8 @@ void erase_and_intercept_all_functions()
 		if(it->first->isSO && it->first->file_path.find("lib/libc.so.6")!=string::npos){
 			for(MAP_ORIGIN_FUNCTION_ITERATOR iter = it->second->begin(); iter!=it->second->end(); iter++){
 				Function *func = iter->second;
-				if(func->get_function_name().find("__memcpy_ssse3_back")!=string::npos){
-					func->erase_function();	
-					func->intercept_to_random_function();
-				}
+				func->erase_function();	
+				func->intercept_to_random_function();
 			}
 		}
 	}
@@ -98,6 +95,18 @@ Function *find_function_by_origin_cc(ORIGIN_ADDR addr)
 		for(MAP_ORIGIN_FUNCTION_ITERATOR iter = it->second->begin(); iter!=it->second->end(); iter++){
 			Function *func = iter->second;
 			if(func->is_in_function_cc(addr))
+				return func;
+		}
+	}
+	return NULL;
+}
+
+Function *find_function_by_addr(ORIGIN_ADDR addr)
+{
+	for(CODE_SEG_MAP_ORIGIN_FUNCTION_ITERATOR it = CSfunctionMapOriginList.begin(); it!=CSfunctionMapOriginList.end(); it++){
+		for(MAP_ORIGIN_FUNCTION_ITERATOR iter = it->second->begin(); iter!=it->second->end(); iter++){
+			Function *func = iter->second;
+			if(func->is_in_function(addr))
 				return func;
 		}
 	}

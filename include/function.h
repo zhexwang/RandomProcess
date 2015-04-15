@@ -72,6 +72,7 @@ public:
 			return false;
 	}
 	BasicBlock *find_bb_by_cc(ORIGIN_ADDR addr);
+	BasicBlock *find_bb_by_addr(ORIGIN_ADDR addr);
 	BOOL add_function_entry(ORIGIN_ADDR entry_addr)
 	{
 		ASSERT(is_already_disasm);

@@ -254,6 +254,18 @@ extern void convertJmpinRipToCmpLImm32(UINT8 *jmpin_instcode, UINT32 jmpin_size,
 	ptr = reinterpret_cast<ADDR>(ptr2);\
 }while(0)
 
+//movl $0x12345678, (0x87654321)
+#define MOVL_IMM32(addr32, imm32, ptr) do{\
+	char *ptr1 = reinterpret_cast<char*>(ptr);\
+	*(ptr1++) = 0xc7;\
+	*(ptr1++) = 0x04;\
+	*(ptr1++) = 0x25;\
+	int *ptr2 = reinterpret_cast<int*>(ptr1);\
+	*(ptr2++) = (int)addr32;\
+	*(ptr2++) = (int)imm32;\
+	ptr = reinterpret_cast<ADDR>(ptr2);\
+}while(0)
+
 //jmp* %reg64
 #define JMP_REG64(reg_num, ptr) do{\
 	char *ptr1 = reinterpret_cast<char*>(ptr);\

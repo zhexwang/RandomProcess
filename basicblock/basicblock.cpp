@@ -13,6 +13,15 @@ SIZE BasicBlock::copy_random_insts(ADDR curr_target_addr, ORIGIN_ADDR origin_tar
 	SIZE cc_size = 0;
 	//copy instrucitons
 	SIZE inst_copy_size = 0;
+	
+#ifdef _DEBUG_BB_TRACE
+	//insert debug inst
+	ADDR curr_target_bk = curr_target_addr;
+	MOVL_IMM32(0x10000, (int)get_origin_addr_before_random(), curr_target_bk);
+	inst_copy_size = curr_target_bk - curr_target_addr;
+	cc_size +=inst_copy_size;
+#endif
+
 	for(vector<Instruction*>::iterator iter = instruction_vec.begin(); (iter<=instruction_vec.end() && iter!=end()); iter++){
 		curr_target_addr += inst_copy_size;
 		origin_target_addr += inst_copy_size;
@@ -130,6 +139,7 @@ SIZE BasicBlock::random_unordinary_inst(Instruction *inst, CODE_CACHE_ADDR curr_
 	}else if(inst->isIndirectJmp()){
 		ASSERT(!fallthrough_bb);
 		if(target_bb_vec.size()==0){
+			ERR("JMPIN(0x%lx) no target!\n", inst->get_inst_origin_addr());
 			return inst->copy_instruction(curr_target_addr, origin_target_addr, map_origin_to_cc, map_cc_to_origin);
 		}else{
 			BOOL ret =  can_hash_low_32bits(target_bb_vec);
@@ -300,7 +310,7 @@ void BasicBlock::dump()
 	PRINT(COLOR_HIGH_GREEN"(BasicBlock *)%p[0x%lx-0x%lx](%d)[RandomEntry: 0x%lx]\n"COLOR_END, this, get_first_instruction()->get_inst_origin_addr(), 
 		get_last_instruction()->get_inst_origin_addr(), (INT32)instruction_vec.size(), _origin_copy_addr);
 	INT32 idx=0;
-	/*INFO("  |---Prev BasicBlock:  ");
+	INFO("  |---Prev BasicBlock:  ");
 	for(vector<BasicBlock*>::iterator it = prev_bb_vec.begin(); it!=prev_bb_vec.end(); it++){
 		INFO("\n  |   ");
 		PRINT("  |---<%d>(BasicBlock *)%p[0x%lx-0x%lx](%d)[RandomEntry: 0x%lx]", idx,  *it, (*it)->get_first_instruction()->get_inst_origin_addr(), 
@@ -308,8 +318,8 @@ void BasicBlock::dump()
 		idx++;
 	}
 	if(idx==0)
-		PRINT("NULL");*/
-	INFO("  |---Target BasicBlock:  ");
+		PRINT("NULL");
+	INFO("\n  |---Target BasicBlock:  ");
 	idx=0;
 	for(vector<BasicBlock*>::iterator it = target_bb_vec.begin(); it!=target_bb_vec.end(); it++){
 		INFO("\n  |   ");

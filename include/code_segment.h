@@ -44,7 +44,6 @@ public:
 			isSO = false;
 		else
 			isSO = is_so_file();
-
 	}
 	
 	void map_CC_to_CS(CodeCache *cc)
