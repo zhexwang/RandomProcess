@@ -91,6 +91,10 @@ public:
 		}
 		return false;
 	}
+	INT32 entry_num()
+	{
+		return entry_list.size();
+	}
 	ADDR get_function_base(){return _function_base;}
 	INT32 get_function_size(){return _function_size;}
 	SIZE get_inst_num(){return _origin_function_instructions.size();}

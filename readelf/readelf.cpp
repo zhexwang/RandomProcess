@@ -173,8 +173,10 @@ void ReadElf::scan_and_record_function(MAP_ORIGIN_FUNCTION *map_origin_function,
 			region_end = origin_init_end;
 		else if(func_start>=origin_fini_start && func_start<origin_fini_end)
 			region_end = origin_fini_end;
-		else
-			ASSERT(0);
+		else{
+			map_origin_function->erase(ret);
+			continue;
+		}
 
 		ORIGIN_ADDR func_end = 0;
 		if(next_inst==map_origin_function->end())

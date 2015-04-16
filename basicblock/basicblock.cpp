@@ -1,5 +1,6 @@
 #include "basicblock.h"
 #include "inst_macro.h"
+#include "debug-config.h"
 #include <map>
 
 SIZE BasicBlock::copy_random_insts(ADDR curr_target_addr, ORIGIN_ADDR origin_target_addr, vector<RELOCATION_ITEM> &relocation
@@ -17,7 +18,9 @@ SIZE BasicBlock::copy_random_insts(ADDR curr_target_addr, ORIGIN_ADDR origin_tar
 #ifdef _DEBUG_BB_TRACE
 	//insert debug inst
 	ADDR curr_target_bk = curr_target_addr;
-	MOVL_IMM32(0x10000, (int)get_origin_addr_before_random(), curr_target_bk);
+	ORIGIN_ADDR entry_addr = get_origin_addr_before_random();
+	MOVL_IMM32(0x10000, (INT32)entry_addr, curr_target_bk);
+	MOVL_IMM32(0x10004, (INT32)(entry_addr>>32), curr_target_bk);
 	inst_copy_size = curr_target_bk - curr_target_addr;
 	cc_size +=inst_copy_size;
 #endif

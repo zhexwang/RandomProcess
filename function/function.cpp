@@ -68,10 +68,12 @@ void Function::disassemble()
 	while(security_size>1){
 		Instruction *instr = new Instruction(origin_addr);
 		SIZE instr_size = instr->disassemable(security_size, (UINT8*)current_addr);
-		if(instr->isDirectJmp() || instr->isConditionBranch()){
+		if(instr->isDirectJmp() || instr->isConditionBranch() || instr->isDirectCall()){
 			ORIGIN_ADDR target_addr = instr->getBranchTargetOrigin();
 			if(!is_in_function(target_addr))
 				_code_segment->direct_profile_func_entry.push_back(target_addr);
+			else
+				ASSERT(!instr->isDirectCall() || target_addr==_origin_function_base);
 		}
 		if(instr->isIndirectJmp()){
 			CodeSegment::INDIRECT_MAP_ITERATOR ret = _code_segment->indirect_inst_map.find(instr->get_inst_origin_addr());

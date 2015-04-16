@@ -26,6 +26,34 @@ const INDIRECT_ITEM ReadLog::indirect_profile_by_hand[] = {
 	{0x13aa26, 0x13c9e0, LIBC, LIBC},
 	{0x13aa26, 0x13c8e0, LIBC, LIBC},
 	{0x13bd56, 0x13ca88, LIBC, LIBC},//memcpy_sse3_back
+	{0x91c46, 0x91d30, LIBC, LIBC},
+	{0x91c46, 0x91d40, LIBC, LIBC},
+	{0x91ca3, 0x91d10, LIBC, LIBC},
+	{0x91c6b, 0x91e00, LIBC, LIBC},
+	{0x91c6b, 0x91d70, LIBC, LIBC},//__strcpy_sse2_unaligned
+	{0x125e29, 0x125ec0, LIBC, LIBC},
+	{0x126bf9, 0x127070, LIBC, LIBC},//__strncmp_sse42
+	{0x87595, 0x87300, LIBC, LIBC},
+	{0x86cc9, 0x86d27, LIBC, LIBC},//__memset_sse2
+	{0x125e29, 0x126060, LIBC, LIBC},
+	{0x125e29, 0x126460, LIBC, LIBC},
+	{0x125e29, 0x126120, LIBC, LIBC},
+	{0x125e29, 0x126390, LIBC, LIBC},
+	{0x125e29, 0x126530, LIBC, LIBC},//__strcmp_sse42
+	{0x140148, 0x141e02, LIBC, LIBC},
+	{0x1419ed, 0x141bc4, LIBC, LIBC},
+	{0x140148, 0x141bba, LIBC, LIBC},
+	{0x140148, 0x142102, LIBC, LIBC},
+	{0x140148, 0x141ce2, LIBC, LIBC},//__memmove_ssse3_back
+	{0x94d09, 0x94ed0, LIBC, LIBC},
+	{0x94d26, 0x94e20, LIBC, LIBC},
+	{0x94d4b, 0x94eb0, LIBC, LIBC},
+	{0x94d4b, 0x94e20, LIBC, LIBC},
+	{0x94d4b, 0x94e60, LIBC, LIBC},
+	{0x94d09, 0x94cf0, LIBC, LIBC},//__strcat_sse2_unaligned
+	{0x9233d, 0x927b0, LIBC, LIBC},
+	{0x9248f, 0x92a80, LIBC, LIBC},
+	{0x9230f, 0x926b0, LIBC, LIBC},//__strncpy_sse2_unaligned
 	{0, 0, LIB_NONE, LIB_NONE},
 };
 
