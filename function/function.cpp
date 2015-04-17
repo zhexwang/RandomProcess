@@ -160,7 +160,6 @@ void Function::random_function(multimap<ORIGIN_ADDR, ORIGIN_ADDR> &map_origin_to
 	// 1.disasm
 	ASSERT(is_already_disasm);
 	is_function_can_be_random = check_random();
-	ASSERT(is_function_can_be_random);
 	if(!is_function_can_be_random)
 		return ;
 	// 2.split into bb

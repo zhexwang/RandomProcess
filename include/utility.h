@@ -1,6 +1,6 @@
 #ifndef _UTILITY_H_
 #define _UTILITY_H_
-
+#include "type.h"
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -32,5 +32,7 @@
 #endif
 
 #define btoa(x) ((x)?"true":"false")
-
+extern void progress_begin();
+extern void print_progress(INT32 current, INT32 max);
+extern void progress_end();
 #endif
