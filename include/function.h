@@ -50,7 +50,7 @@ public:
 	Function(CodeSegment *code_segment, string name, ORIGIN_ADDR origin_function_base, ORIGIN_SIZE origin_function_size, CodeCache *cc);
 	virtual ~Function();
 	string get_function_name(){return _function_name;}
-	void dump_function_origin();
+	void dump_function_origin(map<ORIGIN_ADDR, STACK_TYPE> stack_map);
 	void dump_bb_origin();
 	void dump_function_name()
 	{
@@ -104,7 +104,7 @@ public:
 	void split_into_basic_block();
 	void random_function(multimap<ORIGIN_ADDR, ORIGIN_ADDR> &map_origin_to_cc, 
 		map<ORIGIN_ADDR, ORIGIN_ADDR> &map_cc_to_origin);
-	void analysis_stack(map<ORIGIN_ADDR, STACK_TYPE> stack_map);
+	void analysis_stack(map<ORIGIN_ADDR, STACK_TYPE> &stack_map);
 	BOOL check_random();
 	void flush_function_cc();
 	void erase_function();

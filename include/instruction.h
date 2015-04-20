@@ -145,6 +145,10 @@ public:
 	{
 		return (_dInst->opcode==I_PUSH) && (_dInst->ops[0].type==O_REG) && (_dInst->ops[0].index==R_RBP);
 	}
+	BOOL isPush()
+	{
+		return _dInst->opcode==I_PUSH;
+	}
 	BOOL isPopRbp()
 	{
 		return (_dInst->opcode==I_POP) && (_dInst->ops[0].type==O_REG) && (_dInst->ops[0].index==R_RBP);

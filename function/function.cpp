@@ -15,19 +15,19 @@ Function::Function(CodeSegment *code_segment, string name, ORIGIN_ADDR origin_fu
 Function::~Function(){
 	;
 }
-void Function::dump_function_origin()
+void Function::dump_function_origin(map<ORIGIN_ADDR, STACK_TYPE> stack_map)
 {
 	BLUE("[0x%lx-0x%lx]",  _origin_function_base, _function_size+_origin_function_base);
 	BLUE("%s",_function_name.c_str());
 	BLUE("(Path:%s)[Random:0x%lx-0x%lx]\n", _code_segment->file_path.c_str(), _random_cc_origin_start, _random_cc_origin_start+_random_cc_size);
-	if(is_already_disasm){/*
+	if(is_already_disasm){
 		if(is_already_finish_analysis_stack){
 			PRINT("Return address calculate method:  ");
 			PRINT(COLOR_BLUE"RSP   "COLOR_END);
 			PRINT("RBP_PLUS_4BYTE  ");
 			PRINT(COLOR_YELLOW"RSP_PLUS_4BYTE\n"COLOR_END);
-		}*/
-		for(vector<Instruction*>::iterator iter = _origin_function_instructions.begin(); iter!=_origin_function_instructions.end(); iter++){/*
+		}
+		for(vector<Instruction*>::iterator iter = _origin_function_instructions.begin(); iter!=_origin_function_instructions.end(); iter++){
 			if(is_already_finish_analysis_stack){
 				map<ORIGIN_ADDR, STACK_TYPE>::iterator ret = stack_map.find((*iter)->get_inst_origin_addr());
 				ASSERT(ret!=stack_map.end());
@@ -38,9 +38,9 @@ void Function::dump_function_origin()
 					case S_RSP_A_4: PRINT(COLOR_YELLOW); break;
 					default: ASSERT(0);
 				}
-			}*/
+			}
 			(*iter)->dump();
-			//PRINT(COLOR_END);
+			PRINT(COLOR_END);
 		}
 	}else
 		ERR("Do not disasm!\n");
@@ -220,11 +220,10 @@ void Function::random_function(multimap<ORIGIN_ADDR, ORIGIN_ADDR> &map_origin_to
 	return ;
 }
 
-void Function::analysis_stack(map<ORIGIN_ADDR, STACK_TYPE> stack_map)
+void Function::analysis_stack(map<ORIGIN_ADDR, STACK_TYPE> &stack_map)
 {
 	if(is_already_finish_analysis_stack)
 		return;
-	;
 	// 1.disasm
 	disassemble();
 	// 2.split into bb
@@ -262,6 +261,7 @@ void Function::analysis_stack(map<ORIGIN_ADDR, STACK_TYPE> stack_map)
 						}
 					}else{
 						ASSERT(!isMov && !isRbpRestored);
+						ASSERT(!(*it)->isPush());
 						stack_map.insert(make_pair((*it)->get_inst_origin_addr(), S_RSP));
 					}
 				}
@@ -289,6 +289,7 @@ void Function::analysis_stack(map<ORIGIN_ADDR, STACK_TYPE> stack_map)
 						}
 					}else{
 						ASSERT(!isMov && !isRbpRestored);
+						ASSERT(!(*it)->isPush());
 						stack_map.insert(make_pair((*it)->get_inst_origin_addr(), S_RSP));
 					}
 				}

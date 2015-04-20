@@ -46,6 +46,8 @@ public:
 		map_cc_to_origin[curr_idx].clear();
 	}
 	ORIGIN_ADDR get_new_addr_from_old(ORIGIN_ADDR old_inst_addr, BOOL is_in_cc);
+	ORIGIN_ADDR get_old_origin_addr(ORIGIN_ADDR addr, BOOL is_in_cc);
+	ORIGIN_ADDR get_new_origin_addr(ORIGIN_ADDR addr, BOOL is_in_cc);
 };
 
 #endif

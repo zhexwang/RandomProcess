@@ -43,7 +43,7 @@ public:
 		return origin_addr - origin_stack_start + current_stack_start;
 	}
 
-	void relocate_return_address(MapInst *map_inst);
+	BOOL relocate_return_address(MapInst *map_inst);
 
 	void relocate_current_pc(MapInst *map_inst);
 };

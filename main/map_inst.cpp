@@ -14,13 +14,14 @@ ORIGIN_ADDR MapInst::get_new_addr_from_old(ORIGIN_ADDR old_inst_addr, BOOL is_in
 		MAP_CO_ITERATOR old_iter = map_cc_to_origin[old_idx].find(old_inst_addr);
 		ASSERT(old_iter!=map_cc_to_origin[old_idx].end());
 		ORIGIN_ADDR origin_inst_addr = old_iter->second;
-
+		
+		//find old index
 		MAP_OC_PAIR old_range = map_origin_to_cc[old_idx].equal_range(origin_inst_addr);
 		ASSERT((old_range.first)!=(old_range.second));
 		INT32 old_count = map_origin_to_cc[old_idx].count(origin_inst_addr);
 		INT32 target_idx = 0;
 		for(MAP_OC_ITERATOR it = old_range.first; it!=old_range.second; it++, target_idx++){
-			if((it->second)==origin_inst_addr)
+			if((it->second)==old_inst_addr)
 				break;
 		}
 
@@ -53,3 +54,30 @@ ORIGIN_ADDR MapInst::get_new_addr_from_old(ORIGIN_ADDR old_inst_addr, BOOL is_in
 		}	
 	}
 }
+
+ORIGIN_ADDR MapInst::get_old_origin_addr(ORIGIN_ADDR addr, BOOL is_in_cc)
+{
+	if(is_in_cc){
+		UINT8 old_idx = curr_idx==0 ? 1 : 0;
+		
+		MAP_CO_ITERATOR old_iter = map_cc_to_origin[old_idx].find(addr);
+		ASSERT(old_iter!=map_cc_to_origin[old_idx].end());
+		ORIGIN_ADDR origin_inst_addr = old_iter->second;
+		return origin_inst_addr;
+	}else
+		return addr;
+}
+
+ORIGIN_ADDR MapInst::get_new_origin_addr(ORIGIN_ADDR addr, BOOL is_in_cc)
+{
+	if(is_in_cc){
+		UINT8 new_idx = curr_idx==0 ? 1 : 0;
+		
+		MAP_CO_ITERATOR new_iter = map_cc_to_origin[new_idx].find(addr);
+		ASSERT(new_iter!=map_cc_to_origin[new_idx].end());
+		ORIGIN_ADDR origin_inst_addr = new_iter->second;
+		return origin_inst_addr;
+	}else
+		return addr;
+}
+

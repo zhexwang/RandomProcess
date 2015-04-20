@@ -29,5 +29,7 @@ void Communication::continue_process()
 	//TODO: multi-threads 
 	ASSERT(main_thread_info->flag==1);
 	main_thread_info->flag = 0;
+	while(main_thread_info->flag!=1)
+		sched_yield();
 	lock->unlock();
 }
