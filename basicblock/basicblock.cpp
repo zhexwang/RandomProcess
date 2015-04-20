@@ -38,6 +38,11 @@ SIZE BasicBlock::copy_random_insts(ADDR curr_target_addr, ORIGIN_ADDR origin_tar
 					inst_copy_size += 0x5;
 					RELOCATION_ITEM reloc_info = {REL32_BB_PTR, (curr_target_addr+1), origin_target_addr+5, (ADDR)fallthrough_bb};
 					relocation.push_back(reloc_info);
+					//record
+					ORIGIN_ADDR inst_origin_addr = (*iter)->get_inst_origin_addr();
+					map_origin_to_cc.insert(make_pair(inst_origin_addr, origin_target_addr));	
+					map_cc_to_origin.insert(make_pair(origin_target_addr, inst_origin_addr));
+					//instrument fallthrough
 					JMP_REL32(0x0, curr_target_addr);
 				}else{
 					switch((*iter)->get_inst_opcode()){

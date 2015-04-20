@@ -10,7 +10,6 @@
 #include "communication.h"
 #include <iostream>
 #include <unistd.h>
-
 using namespace std;
 
 CodeCacheManagement *cc_management = NULL;
@@ -59,7 +58,7 @@ void random_all_functions()
 	progress_begin();
 	for(CODE_SEG_MAP_ORIGIN_FUNCTION_ITERATOR it = CSfunctionMapOriginList.begin(); it!=CSfunctionMapOriginList.end(); it++){
 		string path = it->first->file_path;
-		if(!it->first->isSO){//path.find("/lib/ld-2.17.so")==string::npos && path.find("/lib/libpthread.so")==string::npos){
+		if(path.find("/lib/ld-2.17.so")==string::npos && path.find("/lib/libpthread.so")==string::npos){
 			for(MAP_ORIGIN_FUNCTION_ITERATOR iter = it->second->begin(); iter!=it->second->end(); iter++){
 				Function *func = iter->second;
 				if(!need_omit_function(func->get_function_name()))
@@ -75,8 +74,10 @@ void random_all_functions()
 void erase_and_intercept_all_functions()
 {
 	for(CODE_SEG_MAP_ORIGIN_FUNCTION_ITERATOR it = CSfunctionMapOriginList.begin(); it!=CSfunctionMapOriginList.end(); it++){
+		CodeCache *code_cache = it->first->code_cache;
+		code_cache->erase_old_cc();
 		string path = it->first->file_path;
-		if(!it->first->isSO){//path.find("lib/ld-2.17.so")==string::npos && path.find("/lib/libpthread.so")==string::npos){
+		if(path.find("lib/ld-2.17.so")==string::npos && path.find("/lib/libpthread.so")==string::npos){
 			for(MAP_ORIGIN_FUNCTION_ITERATOR iter = it->second->begin(); iter!=it->second->end(); iter++){
 				Function *func = iter->second;
 				if(!need_omit_function(func->get_function_name())){
@@ -150,7 +151,6 @@ void wait_seconds_to_continue_random(INT32 seconds)
 
 }
 
-INT32 times = 2;
 int main(int argc, const char *argv[])
 {
 	// 1.judge illegal
@@ -178,8 +178,8 @@ int main(int argc, const char *argv[])
 	BLUE("[ 4] Finish analysis function stack\n");
 	// loop for random
 	INT32 random_time = 1;
-	while(times!=0){
-		times--;
+	BOOL continue_to_run = true;
+	while(1){
 		// 5.flush
 		BLUE("[ 5] Iterate to random all function: %d times\n", random_time);
 		INFO("[ 5] <1> Flush code cache\n");
@@ -192,7 +192,10 @@ int main(int argc, const char *argv[])
 restop:		
 		// 7.send signal to stop the process
 		INFO("[ 5] <3> Send signal to stop working process\n");
-		communication->stop_process();
+		continue_to_run = communication->stop_process();
+		if(!continue_to_run)
+			break;
+		
 		INFO("[ 5] <4> State migration: \n");
 		// 10.relocate
 		PRINT("         1. Begin to relocate return address of stack and current pc\n");
@@ -209,10 +212,14 @@ restop:
 		PRINT("         2. Finish redirecting the superblock entry\n");
 		// 11.continue to run
 		INFO("[ 5] <5> Send signal to continue working process\n");
-		communication->continue_process();
+		continue_to_run = communication->continue_process();
+		if(!continue_to_run)
+			break;
+		
 		random_time++;
 		// 12.random interval
 		wait_seconds_to_continue_random(5);
 	}
+	BLUE("[ 6] Live Rerandomation is finished. Thanks for using, bye!\n");
 	return 0;
 }

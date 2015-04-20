@@ -2,12 +2,15 @@
 #include "utility.h"
 #include <sched.h>
 
+#define threshold 1000
+static INT64 wait_times = 0;
+
 Communication::Communication()
 {
 	lock = new SpinLock();
 }
 
-void Communication::stop_process()
+BOOL Communication::stop_process()
 {
 	lock->lock();
 	// 1.clear communication flag
@@ -18,18 +21,36 @@ void Communication::stop_process()
 	//TODO: multi-threads need use pthread_kill
 	kill(main_thread_info->process_id, SIGUSR1);
 	// 3.wait process has already stop
-	while(main_thread_info->flag!=1)
+	while(main_thread_info->flag!=1){
+		if(wait_times>=threshold){
+			lock->unlock();
+			return false;
+		}
+			
 		sched_yield();
+		wait_times++;
+	}
+	wait_times = 0;
 	lock->unlock();
+	return true;
 }
 
-void Communication::continue_process()
+BOOL Communication::continue_process()
 {
 	lock->lock();
 	//TODO: multi-threads 
 	ASSERT(main_thread_info->flag==1);
 	main_thread_info->flag = 0;
-	while(main_thread_info->flag!=1)
+	while(main_thread_info->flag!=1){
+		if(wait_times>=threshold){
+			lock->unlock();
+			return false;
+		}
+			
 		sched_yield();
+		wait_times++;
+	}
+	wait_times = 0;
 	lock->unlock();
+	return true;
 }

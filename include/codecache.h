@@ -5,6 +5,7 @@
 #include "utility.h"
 #include "code_segment.h"
 #include "disasm_common.h"
+#include <string.h>
 
 class CodeCache
 {
@@ -68,13 +69,22 @@ public:
 
 	void flush()
 	{
-		current_code_cache_ptr[0] = code_cache_start[0];
-		origin_process_code_cache_ptr[0] = origin_process_code_cache_start[0];
+		curr_idx = curr_idx==0 ? 1 : 0;
+		current_code_cache_ptr[curr_idx] = code_cache_start[curr_idx];
+		origin_process_code_cache_ptr[curr_idx] = origin_process_code_cache_start[curr_idx];
+		/*
 		current_code_cache_ptr[1] = code_cache_start[1];
 		origin_process_code_cache_ptr[1] = origin_process_code_cache_start[1];
-		curr_idx = curr_idx==0 ? 1 : 0;
+		*/
 	}
 
+	void erase_old_cc()
+	{
+		UINT8 old_idx = curr_idx==0 ? 1 : 0;
+		memset((void*)code_cache_start[old_idx], 0, (SIZE)(code_cache_end[old_idx] - code_cache_start[old_idx]));
+		current_code_cache_ptr[old_idx] = code_cache_start[old_idx];
+		origin_process_code_cache_ptr[old_idx] = origin_process_code_cache_start[old_idx];
+	}
 	BOOL isInCC(ORIGIN_ADDR origin_addr)
 	{
 		return ((origin_addr>=origin_process_code_cache_start[0])&&(origin_addr<=origin_process_code_cache_end[1]));

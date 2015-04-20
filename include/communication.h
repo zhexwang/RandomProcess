@@ -31,8 +31,8 @@ public:
 		main_thread_info = info;
 	}
 	
-	void stop_process();
-	void continue_process();
+	BOOL stop_process();
+	BOOL continue_process();
 };
 
 #endif
