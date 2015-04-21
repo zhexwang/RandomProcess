@@ -93,13 +93,12 @@ void erase_and_intercept_all_functions()
 void flush()
 {
 	for(CODE_SEG_MAP_ORIGIN_FUNCTION_ITERATOR it = CSfunctionMapOriginList.begin(); it!=CSfunctionMapOriginList.end(); it++){
-		CodeCache *code_cache = it->first->code_cache;
-		code_cache->flush();
 		for(MAP_ORIGIN_FUNCTION_ITERATOR iter = it->second->begin(); iter!=it->second->end(); iter++){
 			Function *func = iter->second;
 			func->flush_function_cc();
 		}
 	}
+	cc_management->flush();
 	return ;
 }
 
@@ -150,6 +149,7 @@ void wait_seconds_to_continue_random(INT32 seconds)
 	YELLOW("	 <<Begin to rerandom the process>>\n");
 
 }
+INT32 random_times = 1;
 
 int main(int argc, const char *argv[])
 {
@@ -177,11 +177,11 @@ int main(int argc, const char *argv[])
 	analysis_all_functions_stack();
 	BLUE("[ 4] Finish analysis function stack\n");
 	// loop for random
-	INT32 random_time = 1;
+	
 	BOOL continue_to_run = true;
 	while(1){
 		// 5.flush
-		BLUE("[ 5] Iterate to random all function: %d times\n", random_time);
+		BLUE("[ 5] Iterate to random all function: %d times\n", random_times);
 		INFO("[ 5] <1> Flush code cache\n");
 		flush();
 		map_inst_info->flush();
@@ -204,7 +204,7 @@ restop:
 			ERR("            Fail to relocate return address of stack. Sleep serveral seconds and restop the process\n");
 			INFO("[ 5] <5> Send signal to continue working process\n");
 			communication->continue_process();
-			sleep(2);
+			sleep(1);
 			goto restop;
 		}
 		// 9.erase and intercept
@@ -216,10 +216,10 @@ restop:
 		if(!continue_to_run)
 			break;
 		
-		random_time++;
+		random_times++;
 		// 12.random interval
 		wait_seconds_to_continue_random(5);
 	}
-	BLUE("[ 6] Live Rerandomation is finished. Thanks for using, bye!\n");
+	BLUE("[ 6] Live Rerandomization is finished. Thanks for using, bye!\n");
 	return 0;
 }

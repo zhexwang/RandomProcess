@@ -1,10 +1,14 @@
 #include "map_inst.h"
+#include "function.h"
 
 ORIGIN_ADDR MapInst::get_curr_addr_by_origin(ORIGIN_ADDR addr)
 {
 	MAP_CO_ITERATOR ret = map_cc_to_origin[curr_idx].find(addr);
 	return ret==map_cc_to_origin[curr_idx].end() ? 0 : ret->second;
 }
+
+extern INT32 random_times;
+extern Function *find_function_by_addr(ORIGIN_ADDR addr);
 
 ORIGIN_ADDR MapInst::get_new_addr_from_old(ORIGIN_ADDR old_inst_addr, BOOL is_in_cc)
 {
@@ -39,9 +43,18 @@ ORIGIN_ADDR MapInst::get_new_addr_from_old(ORIGIN_ADDR old_inst_addr, BOOL is_in
 		return ret_iter->second;
 	}else{
 		UINT8 old_idx = curr_idx==0 ? 1 : 0;
-		//old map should not has this instruction
+		
 		INT32 count_num = map_origin_to_cc[old_idx].count(old_inst_addr);
-		ASSERT(count_num==0);	
+		if(random_times==1)
+			ASSERT(count_num==0);//old map should not has this instruction
+		else{
+			if(count_num!=0){//intercept jmp inst
+				Function * func = find_function_by_addr(old_inst_addr);
+				ASSERT(func);
+				ASSERT(func->is_entry(old_inst_addr));
+				return old_inst_addr;
+			}
+		}
 
 		MAP_OC_PAIR new_range = map_origin_to_cc[curr_idx].equal_range(old_inst_addr);
 		if(new_range.first==new_range.second){

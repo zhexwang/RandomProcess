@@ -127,6 +127,12 @@ public:
 	{
 		cc_vec.push_back(cc);
 	}
+	void flush()
+	{
+		for(vector<CodeCache*>::iterator iter = cc_vec.begin(); iter!=cc_vec.end(); iter++){
+			(*iter)->flush();
+		}
+	}
 	BOOL is_in_old_cc(ORIGIN_ADDR origin_inst_addr)
 	{
 		for(vector<CodeCache*>::iterator iter = cc_vec.begin(); iter!=cc_vec.end(); iter++){
