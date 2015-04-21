@@ -209,9 +209,9 @@ restop:
 		}
 		// 9.erase and intercept
 		erase_and_intercept_all_functions();
-		PRINT("         2. Finish redirecting the superblock entry\n");
+		PRINT("         2. Finish redirecting the superblock entry and erasing old code\n");
 		// 11.continue to run
-		INFO("[ 5] <5> Send signal to continue working process\n");
+		INFO("[ 5] <5> Wake up and continue the working process\n");
 		continue_to_run = communication->continue_process();
 		if(!continue_to_run)
 			break;
