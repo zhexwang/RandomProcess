@@ -30,6 +30,11 @@ public:
 	{
 		main_thread_info = info;
 	}
+
+	void set_child_communication(COMMUNICATION_INFO *info)
+	{
+		child_thread_info.push_back(info);
+	}
 	
 	BOOL stop_process();
 	BOOL continue_process();

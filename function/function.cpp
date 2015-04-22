@@ -1,5 +1,6 @@
 #include "function.h"
 #include "inst_macro.h"
+#include <time.h>
 
 Function::Function(CodeSegment *code_segment, string name, ORIGIN_ADDR origin_function_base, ORIGIN_SIZE origin_function_size, CodeCache *cc)
 	:_code_segment(code_segment), _function_name(name), _origin_function_base(origin_function_base), _function_size(origin_function_size)
@@ -150,6 +151,28 @@ BOOL Function::check_random()
 	return true ;
 }
 
+void random_array(INT32 *array, INT32 num)
+{
+	ASSERT(num>0);
+	if(num==1){
+		array[0] = 0;
+		return ;
+	}
+	// 1.init array
+	for(INT32 idx=0; idx<num; idx++)
+		array[idx] = idx;
+
+	// 2. random seed
+	srand((INT32)time(NULL));
+	for(INT32 idx=num-1; idx>0; idx--){
+		// 3.swap
+		INT32 swap_idx = rand()%idx;
+		INT32 temp = array[swap_idx];
+		array[swap_idx] = array[idx];
+		array[idx] = temp;
+	}
+}
+
 void Function::random_function(multimap<ORIGIN_ADDR, ORIGIN_ADDR> &map_origin_to_cc, 
 		map<ORIGIN_ADDR, ORIGIN_ADDR> &map_cc_to_origin)
 {
@@ -173,18 +196,23 @@ void Function::random_function(multimap<ORIGIN_ADDR, ORIGIN_ADDR> &map_origin_to
 	SIZE bb_copy_size = 0;	
 	_random_cc_start = cc_curr_addr;
 	_random_cc_origin_start = cc_origin_addr;
-	for(vector<BasicBlock *>::iterator ite = bb_list.begin(); ite!=bb_list.end(); ite++){
+	INT32 *array = new INT32[bb_list.size()];
+	random_array(array, bb_list.size());
+	for(SIZE idx=0; idx<bb_list.size(); idx++){
 		cc_curr_addr += bb_copy_size;
 		cc_origin_addr += bb_copy_size;
+		BasicBlock *random_bb = bb_list[array[idx]];
 		//random some insts in BB
-		bb_copy_size = (*ite)->copy_random_insts(cc_curr_addr, cc_origin_addr, relocation, map_origin_to_cc, map_cc_to_origin);
+		bb_copy_size = random_bb->copy_random_insts(cc_curr_addr, cc_origin_addr, relocation, map_origin_to_cc, map_cc_to_origin);
 		//record function entry
 		for(INT32 idx=0; idx<(INT32)entry_list.size(); idx++){
-			if(entry_list[idx].origin_entry==(*ite)->get_origin_addr_before_random())
+			if(entry_list[idx].origin_entry==random_bb->get_origin_addr_before_random())
 				entry_list[idx].random_entry = cc_curr_addr;
 		}
 		_random_cc_size += bb_copy_size;
 	}
+	delete []array;
+
 	for(INT32 idx=0; idx<(INT32)entry_list.size(); idx++)
 		ASSERT(entry_list[idx].random_entry!=0);
 	

@@ -12,8 +12,7 @@
 #include <iostream>
 using namespace std;
 
-extern ShareStack *main_share_stack ;
-extern CodeCacheManagement *cc_management;
+
 typedef enum {
 	LIBC = 0,
 	LIBM,

@@ -57,6 +57,10 @@ const INDIRECT_ITEM ReadLog::indirect_profile_by_hand[] = {
 	{0, 0, LIB_NONE, LIB_NONE},
 };
 
+extern ShareStack *main_share_stack ;
+extern ShareStack *child_share_stack[THREAD_MAX_NUM];
+
+extern CodeCacheManagement *cc_management;
 
 
 void ReadLog::init_share_log()
@@ -70,17 +74,16 @@ void ReadLog::init_share_log()
 	CodeCache *cc_array[100];
 	ASSERT(shm_num<=100);
 	for(INT32 idx=0; idx<shm_num; idx++){
-		ORIGIN_ADDR region_start;
-		ORIGIN_ADDR region_end;
+		ORIGIN_ADDR region_start, region_end;
 		string shm_name;
 		string code_path;
 		char c;
 		INT32 cc_idx;
-		BOOL isCodeCache;
-		BOOL isStack;
+		BOOL isCodeCache, isStack, isMainStack;
 		ifs>>dec>>cc_idx>>hex>>region_start>>c>>region_end>>shm_name>>code_path;
 		isCodeCache = cc_idx==-1 ? true : false;
-		isStack = cc_idx==-2 ? true: false;
+		isStack = (cc_idx==-2 || cc_idx==-3) ? true: false;
+		isMainStack = (cc_idx==-2) ? true : false;
 		map_cc_array[idx] = cc_idx;
 		CodeSegment *cs = new CodeSegment(region_start, region_end-region_start, code_path, shm_name, isCodeCache, isStack);
 		code_segment_vec.push_back(cs);
@@ -94,13 +97,26 @@ void ReadLog::init_share_log()
 		}else
 			cc_array[idx] = NULL;
 		//stack record
-		if(isStack)
-			main_share_stack = new ShareStack(*cs, true);
+		if(isStack){
+			ORIGIN_ADDR origin_stack_start = region_start;
+			SIZE stack_size = region_end-region_start;
+			ADDR curr_stack_start = (ADDR)cs->native_map_code_start;
+			if(isMainStack)
+				main_share_stack = new ShareStack(origin_stack_start, stack_size, curr_stack_start, true);
+			else{
+				SIZE child_stack_size = stack_size/THREAD_MAX_NUM;
+				for(INT32 idx = 0; idx<THREAD_MAX_NUM; idx++){
+					child_share_stack[idx] = new ShareStack(origin_stack_start, child_stack_size, curr_stack_start, false);
+					origin_stack_start += child_stack_size;
+					curr_stack_start += child_stack_size;
+				}
+			}
+		}
 	}
 	//3.map cc
 	for(INT32 idx=0; idx<shm_num; idx++){
 		INT32 map_idx = map_cc_array[idx];
-		CodeCache *cc = (map_idx==-1 || map_idx==-2) ? NULL : cc_array[map_idx];
+		CodeCache *cc = (map_idx==-1 || map_idx==-2 || map_idx==-3) ? NULL : cc_array[map_idx];
 		code_segment_vec[idx]->map_CC_to_CS(cc);
 	}
 	share_log_is_init = true;

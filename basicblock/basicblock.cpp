@@ -53,6 +53,8 @@ SIZE BasicBlock::copy_random_insts(ADDR curr_target_addr, ORIGIN_ADDR origin_tar
 						default:
 							ASSERT(0);
 					}	
+					INV_INS_1(curr_target_addr);
+					inst_copy_size = 1;
 				}
 			}
 		}else{//handle special instructions 
@@ -110,19 +112,36 @@ SIZE BasicBlock::random_unordinary_inst(Instruction *inst, CODE_CACHE_ADDR curr_
 		ORIGIN_ADDR first_inst = origin_target_addr;
 		map_origin_to_cc.insert(make_pair(inst_origin_addr, first_inst));
 		map_cc_to_origin.insert(make_pair(first_inst, inst_origin_addr));
+		
 		if(fallthrough_bb){
 			//generate second instruction
 			RELOCATION_ITEM reloc_info = {REL32_BB_PTR, (cc_start+1), (origin_target_addr+10),(ADDR)fallthrough_bb};
 			relocation.push_back(reloc_info);
 			JMP_REL32(0x0, cc_start);
+		}else
+			INV_INS_1(cc_start);
+		//record second instruction mapping
+		ORIGIN_ADDR second_inst = first_inst+0x5;
+		map_origin_to_cc.insert(make_pair(inst_origin_addr, second_inst));	
+		map_cc_to_origin.insert(make_pair(second_inst, inst_origin_addr));
+	}else if(inst->isIndirectCall()){
+		SIZE copy_size = inst->copy_instruction(curr_target_addr, origin_target_addr, map_origin_to_cc, map_cc_to_origin);
+		curr_target_addr += copy_size;
+		origin_target_addr += copy_size;
+		if(fallthrough_bb){
+			//generate second instruction
+			RELOCATION_ITEM reloc_info = {REL32_BB_PTR, (curr_target_addr+1), (origin_target_addr+5),(ADDR)fallthrough_bb};
+			relocation.push_back(reloc_info);
 			//record second instruction mapping
-			ORIGIN_ADDR second_inst = first_inst+0x5;
-			map_origin_to_cc.insert(make_pair(inst_origin_addr, second_inst));	
-			map_cc_to_origin.insert(make_pair(second_inst, inst_origin_addr));
+			map_origin_to_cc.insert(make_pair(inst_origin_addr, origin_target_addr));	
+			map_cc_to_origin.insert(make_pair(origin_target_addr, inst_origin_addr));
+			JMP_REL32(0x0, curr_target_addr);
+			return copy_size+0x5;
+		}else{
+			INV_INS_1(curr_target_addr);
+			return copy_size+0x1;
 		}
-	}else if(inst->isIndirectCall())
-		return inst->copy_instruction(curr_target_addr, origin_target_addr, map_origin_to_cc, map_cc_to_origin);
-	else if(inst->isDirectJmp()){
+	}else if(inst->isDirectJmp()){
 		ASSERT((target_bb_vec.size()<=1)&&!fallthrough_bb);
 		if(target_bb_vec.size()==1){
 			ASSERT(target_bb_vec[0]->get_origin_addr_before_random()==inst->getBranchTargetOrigin());

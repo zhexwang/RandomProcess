@@ -20,4 +20,6 @@ typedef size_t SIZE;
 typedef size_t ORIGIN_SIZE;
 typedef size_t CODE_CACHE_SIZE;
 
+#define THREAD_MAX_NUM 128
+
 #endif

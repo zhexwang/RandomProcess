@@ -15,6 +15,7 @@ using namespace std;
 CodeCacheManagement *cc_management = NULL;
 MapInst *map_inst_info = NULL;
 ShareStack *main_share_stack = NULL;
+ShareStack *child_share_stack[THREAD_MAX_NUM];
 Communication *communication = NULL;
 CODE_SEG_MAP_ORIGIN_FUNCTION CSfunctionMapOriginList;
 extern void split_function_from_target_branch();
@@ -127,14 +128,24 @@ Function *find_function_by_addr(ORIGIN_ADDR addr)
 }
 
 BOOL relocate_retaddr_and_pc()
-{//do not concern the multi-thread
+{
 	ASSERT(main_share_stack);
-	BOOL can_be_random = main_share_stack->relocate_return_address(map_inst_info);	
+	BOOL can_be_random = main_share_stack->check_relocate(map_inst_info);	
 	if(!can_be_random)
 		return false;
+	for(INT32 idx=0; idx<THREAD_MAX_NUM; idx++){
+		can_be_random = child_share_stack[idx]->check_relocate(map_inst_info);
+		if(!can_be_random)
+			return false;
+	}
+	
+	main_share_stack->relocate_return_address(map_inst_info);
 	main_share_stack->relocate_current_pc(map_inst_info);	
+	for(INT32 idx=0; idx<THREAD_MAX_NUM; idx++){
+		child_share_stack[idx]->relocate_return_address(map_inst_info);
+		child_share_stack[idx]->relocate_current_pc(map_inst_info);
+	}
 	return true;
-//TODO::handle multi-thread stack
 }
 
 void wait_seconds_to_continue_random(INT32 seconds)
