@@ -267,11 +267,22 @@ SIZE BasicBlock::random_unordinary_inst(Instruction *inst, CODE_CACHE_ADDR curr_
 			case I_JA: case I_JAE: case I_JB: case I_JBE: case I_JCXZ: case I_JECXZ: case I_JG:
 			case I_JGE: case I_JL: case I_JLE: case I_JNO: case I_JNP: case I_JNS: case I_JNZ:
 			case I_JO: case I_JP: case I_JRCXZ: case I_JS: case I_JZ:{
-				//judge is jump short or jump near
-				UINT8 first_byte = inst->get_inst_code_first_byte();
-				UINT8 base_opcode = first_byte==0x0f ? inst->get_inst_code_second_byte() : first_byte+0x10;
-				//generate target
 				UINT8 *ptr = reinterpret_cast<UINT8*>(cc_start);
+				//judge is jump short or jump near and handle prefix 
+				UINT8 first_byte = inst->get_inst_code_first_byte();
+				UINT8 second_byte = inst->get_inst_code_second_byte();
+				UINT8 base_opcode;
+				UINT8 first_inst_size;
+				if(first_byte==0x3e){
+					*(ptr++) = 0x3e;
+					UINT8 third_byte = inst->get_inst_code_third_byte();
+					base_opcode = second_byte==0x0f ? third_byte : second_byte+0x10;
+					first_inst_size = 7;
+				}else{
+					base_opcode = first_byte==0x0f ? second_byte : first_byte+0x10;
+					first_inst_size = 6;
+				}
+				//generate target				
 				*(ptr++) = 0x0f;
 				*(ptr++) = base_opcode;
 				INT32 *ptr1 = reinterpret_cast<INT32 *>(ptr);
@@ -284,30 +295,32 @@ SIZE BasicBlock::random_unordinary_inst(Instruction *inst, CODE_CACHE_ADDR curr_
 						ASSERT(target_bb_vec[0]->get_first_instruction()->get_inst_code_first_byte()==0xf0);
 					}
 					RELOCATION_TYPE type = target_addr==real_target_addr ? REL32_BB_PTR : REL32_BB_PTR_A_1;
-	 				RELOCATION_ITEM target_reloc_info = {type, (ADDR)ptr, origin_target_addr+6, (ADDR)target_bb_vec[0]};
+	 				RELOCATION_ITEM target_reloc_info = {type, (ADDR)ptr, origin_target_addr+first_inst_size, (ADDR)target_bb_vec[0]};
 					relocation.push_back(target_reloc_info);
 				}else{
 					//ERR("CND Branch(0x%lx) out of function, target is 0x%lx!\n", inst->get_inst_origin_addr(), inst->getBranchTargetOrigin());
-					*(ptr1++) = inst->getBranchTargetOrigin() - (origin_target_addr+6);
+					*(ptr1++) = inst->getBranchTargetOrigin() - (origin_target_addr+first_inst_size);
 				}
 				//record first instruction mapping
 				map_origin_to_cc.insert(make_pair(inst_origin_addr, origin_target_addr));
 				map_cc_to_origin.insert(make_pair(origin_target_addr, inst_origin_addr));
 				
 				cc_start = reinterpret_cast<ADDR>(ptr1);
+				UINT8 second_inst_size = 5;
 				//generate fallthrough
 				if(fallthrough_bb){
-					RELOCATION_ITEM fallthrough_reloc_info = {REL32_BB_PTR, (cc_start+1), origin_target_addr+11, (ADDR)fallthrough_bb};
+					RELOCATION_ITEM fallthrough_reloc_info = {REL32_BB_PTR, (cc_start+1),\
+						origin_target_addr+second_inst_size+first_inst_size, (ADDR)fallthrough_bb};
 					relocation.push_back(fallthrough_reloc_info);
 					JMP_REL32(0x0, cc_start);	
 				}else{//false call
-					INT64 offset = inst->get_inst_origin_addr() + inst->get_inst_size() - (origin_target_addr+11);
+					INT64 offset = inst->get_inst_origin_addr() + inst->get_inst_size() - (origin_target_addr+second_inst_size+first_inst_size);
 					ASSERT((offset > 0 ? offset : -offset) < 0x7fffffff);
 					JMP_REL32(offset, cc_start);
 				}	
 				//record second instructoin mapping
-				map_origin_to_cc.insert(make_pair(inst_origin_addr, origin_target_addr+0x6));
-				map_cc_to_origin.insert(make_pair(origin_target_addr+0x6, inst_origin_addr));
+				map_origin_to_cc.insert(make_pair(inst_origin_addr, origin_target_addr+first_inst_size));
+				map_cc_to_origin.insert(make_pair(origin_target_addr+first_inst_size, inst_origin_addr));
 				break;}
 			case I_LOOP: case I_LOOPZ: case I_LOOPNZ:{
 				ASSERTM(0, "LOOP unhandle!\n");

@@ -1,12 +1,14 @@
 #include "function.h"
 #include "inst_macro.h"
+#include "stack.h"
 #include <time.h>
+#include <set>
 
 Function::Function(CodeSegment *code_segment, string name, ORIGIN_ADDR origin_function_base, ORIGIN_SIZE origin_function_size, CodeCache *cc)
-	:_code_segment(code_segment), _function_name(name), _origin_function_base(origin_function_base), _function_size(origin_function_size)
+	: _function_name(name), _origin_function_base(origin_function_base), _function_size(origin_function_size)
 	, _random_cc_start(0), _random_cc_origin_start(0), _random_cc_size(0), code_cache(cc), is_already_disasm(false), is_already_split_into_bb(false)
 	, is_already_finish_random(false) , is_already_finish_intercept(false), is_already_finish_erase(false), is_function_can_be_random(false)
-	, is_already_finish_analysis_stack(false)
+	, is_already_finish_analysis_stack(false), _code_segment(code_segment)
 	
 {
 	_function_base = code_segment->convert_origin_process_addr_to_this(_origin_function_base);
@@ -16,7 +18,7 @@ Function::Function(CodeSegment *code_segment, string name, ORIGIN_ADDR origin_fu
 Function::~Function(){
 	;
 }
-void Function::dump_function_origin(map<ORIGIN_ADDR, STACK_TYPE> stack_map)
+void Function::dump_function_origin()
 {
 	BLUE("[0x%lx-0x%lx]",  _origin_function_base, _function_size+_origin_function_base);
 	BLUE("%s",_function_name.c_str());
@@ -30,8 +32,8 @@ void Function::dump_function_origin(map<ORIGIN_ADDR, STACK_TYPE> stack_map)
 		}
 		for(vector<Instruction*>::iterator iter = _origin_function_instructions.begin(); iter!=_origin_function_instructions.end(); iter++){
 			if(is_already_finish_analysis_stack){
-				map<ORIGIN_ADDR, STACK_TYPE>::iterator ret = stack_map.find((*iter)->get_inst_origin_addr());
-				ASSERT(ret!=stack_map.end());
+				map<ORIGIN_ADDR, STACK_TYPE>::iterator ret = ShareStack::stack_map.find((*iter)->get_inst_origin_addr());
+				ASSERT(ret!=ShareStack::stack_map.end());
 				STACK_TYPE type = ret->second;
 				switch(type){
 					case S_RSP: PRINT(COLOR_BLUE); break;
@@ -58,6 +60,7 @@ void Function::dump_bb_origin()
 	}else
 		ERR("Do not split into BB!\n");
 }
+
 void Function::disassemble()
 {
 	if(is_already_disasm)
@@ -69,6 +72,12 @@ void Function::disassemble()
 	while(security_size>1){
 		Instruction *instr = new Instruction(origin_addr);
 		SIZE instr_size = instr->disassemable(security_size, (UINT8*)current_addr);
+		if(instr->isSyscall()){
+			//record signal stop instruction
+			ORIGIN_ADDR stop_instruction = origin_addr+instr_size;
+			ShareStack::lib_stack_map.insert(make_pair(stop_instruction, (LIB_STACK_TYPE){STACK_NONE,0}));
+		}
+			
 		if(instr->isDirectJmp() || instr->isConditionBranch() || instr->isDirectCall()){
 			ORIGIN_ADDR target_addr = instr->getBranchTargetOrigin();
 			if(!is_in_function(target_addr))
@@ -125,7 +134,6 @@ void Function::erase_function()
 	ADDR erase_end = _function_base+_function_size;
 	for(ADDR erase_item = erase_start; erase_item<erase_end; erase_item++)
 		INV_INS_1(erase_item);
-	
 	is_already_finish_erase = true;
 }
 
@@ -248,7 +256,7 @@ void Function::random_function(multimap<ORIGIN_ADDR, ORIGIN_ADDR> &map_origin_to
 	return ;
 }
 
-void Function::analysis_stack(map<ORIGIN_ADDR, STACK_TYPE> &stack_map)
+void Function::analysis_stack()
 {
 	if(is_already_finish_analysis_stack)
 		return;
@@ -266,31 +274,31 @@ void Function::analysis_stack(map<ORIGIN_ADDR, STACK_TYPE> &stack_map)
 			for(BB_INS_ITER it = (*ite)->begin(); it!=(*ite)->end(); it++){
 				if((*it)->isPushRbp()){
 					ASSERT(!isMov);
-					stack_map.insert(make_pair((*it)->get_inst_origin_addr(), S_RSP));
+					ShareStack::stack_map.insert(make_pair((*it)->get_inst_origin_addr(), S_RSP));
 					isRbpStored = true;
 				}else if((*it)->isMovRspRbp()){
 					ASSERT(isRbpStored);
-					stack_map.insert(make_pair((*it)->get_inst_origin_addr(), S_RSP_A_4));
+					ShareStack::stack_map.insert(make_pair((*it)->get_inst_origin_addr(), S_RSP_A_4));
 					isMov = true;
 				}else if((*it)->isPopRbp() || (*it)->isLeave()){
 					ASSERT(isMov && isRbpStored && !isRbpRestored);
-					stack_map.insert(make_pair((*it)->get_inst_origin_addr(), S_RBP_A_4));
+					ShareStack::stack_map.insert(make_pair((*it)->get_inst_origin_addr(), S_RBP_A_4));
 					isRbpRestored = true;
 				}else{
 					if(isRbpStored){						
 						if(isMov){
 							if(isRbpRestored){
-								stack_map.insert(make_pair((*it)->get_inst_origin_addr(), S_RSP));
+								ShareStack::stack_map.insert(make_pair((*it)->get_inst_origin_addr(), S_RSP));
 							}else
-								stack_map.insert(make_pair((*it)->get_inst_origin_addr(), S_RBP_A_4));
+								ShareStack::stack_map.insert(make_pair((*it)->get_inst_origin_addr(), S_RBP_A_4));
 						}else{
 							ASSERT(!isRbpRestored);
-							stack_map.insert(make_pair((*it)->get_inst_origin_addr(), S_RSP_A_4));
+							ShareStack::stack_map.insert(make_pair((*it)->get_inst_origin_addr(), S_RSP_A_4));
 						}
 					}else{
 						ASSERT(!isMov && !isRbpRestored);
 						ASSERT(!(*it)->isPush());
-						stack_map.insert(make_pair((*it)->get_inst_origin_addr(), S_RSP));
+						ShareStack::stack_map.insert(make_pair((*it)->get_inst_origin_addr(), S_RSP));
 					}
 				}
 			}
@@ -302,23 +310,23 @@ void Function::analysis_stack(map<ORIGIN_ADDR, STACK_TYPE> &stack_map)
 			for(BB_INS_ITER it = (*ite)->begin(); it!=(*ite)->end(); it++){
 				if((*it)->isPopRbp() || (*it)->isLeave()){
 					ASSERT(isMov && isRbpStored && !isRbpRestored);
-					stack_map.insert(make_pair((*it)->get_inst_origin_addr(), S_RBP_A_4));
+					ShareStack::stack_map.insert(make_pair((*it)->get_inst_origin_addr(), S_RBP_A_4));
 					isRbpRestored = true;
 				}else{
 					if(isRbpStored){						
 						if(isMov){
 							if(isRbpRestored){
-								stack_map.insert(make_pair((*it)->get_inst_origin_addr(), S_RSP));
+								ShareStack::stack_map.insert(make_pair((*it)->get_inst_origin_addr(), S_RSP));
 							}else
-								stack_map.insert(make_pair((*it)->get_inst_origin_addr(), S_RBP_A_4));
+								ShareStack::stack_map.insert(make_pair((*it)->get_inst_origin_addr(), S_RBP_A_4));
 						}else{
 							ASSERT(!isRbpRestored);
-							stack_map.insert(make_pair((*it)->get_inst_origin_addr(), S_RSP_A_4));
+							ShareStack::stack_map.insert(make_pair((*it)->get_inst_origin_addr(), S_RSP_A_4));
 						}
 					}else{
 						ASSERT(!isMov && !isRbpRestored);
 						ASSERT(!(*it)->isPush());
-						stack_map.insert(make_pair((*it)->get_inst_origin_addr(), S_RSP));
+						ShareStack::stack_map.insert(make_pair((*it)->get_inst_origin_addr(), S_RSP));
 					}
 				}
 			}
@@ -326,6 +334,65 @@ void Function::analysis_stack(map<ORIGIN_ADDR, STACK_TYPE> &stack_map)
 			if(isRbpRestored)
 				ASSERT((*ite)->is_target_empty() && (*ite)->is_fallthrough_empty());
 		}
+	}
+
+	is_already_finish_analysis_stack = true;
+}
+
+void Function::analysis_stack_v2()
+{
+	if(is_already_finish_analysis_stack)
+		return;
+	// 1.disasm
+	disassemble();
+	// 2.split into bb
+	split_into_basic_block();
+	
+	BOOL isRbpStored = false;
+	BOOL isRbpRestored = false;
+	BOOL isMov = false;
+	BOOL need_recover = false;
+	
+	for(vector<BasicBlock *>::iterator ite = bb_list.begin(); ite!=bb_list.end(); ite++){
+		if(need_recover){
+			need_recover = false;
+			isRbpRestored = false;
+		}
+		
+		for(BB_INS_ITER it = (*ite)->begin(); it!=(*ite)->end(); it++){
+			if((*it)->isPushRbp()){
+				ASSERT(!isMov);
+				ShareStack::stack_map.insert(make_pair((*it)->get_inst_origin_addr(), S_RSP));
+				isRbpStored = true;
+			}else if((*it)->isMovRspRbp()){
+				ASSERT(isRbpStored);
+				ShareStack::stack_map.insert(make_pair((*it)->get_inst_origin_addr(), S_RSP_A_4));
+				isMov = true;
+			}else if((*it)->isPopRbp() || (*it)->isLeave()){
+				ASSERT(isMov && isRbpStored && !isRbpRestored);
+				ShareStack::stack_map.insert(make_pair((*it)->get_inst_origin_addr(), S_RBP_A_4));
+				isRbpRestored = true;
+			}else{
+				if(isRbpStored){						
+					if(isMov){
+						if(isRbpRestored){
+							ShareStack::stack_map.insert(make_pair((*it)->get_inst_origin_addr(), S_RSP));
+						}else
+							ShareStack::stack_map.insert(make_pair((*it)->get_inst_origin_addr(), S_RBP_A_4));
+					}else{
+						ASSERT(!isRbpRestored);
+						ShareStack::stack_map.insert(make_pair((*it)->get_inst_origin_addr(), S_RSP_A_4));
+					}
+				}else{
+					ASSERT(!isMov && !isRbpRestored);
+					ASSERT(!(*it)->isPush());//must have stack frame
+					ShareStack::stack_map.insert(make_pair((*it)->get_inst_origin_addr(), S_RSP));
+				}
+			}
+		}
+		
+		if((*ite)->is_fallthrough_empty())
+			need_recover = true;
 	}
 
 	is_already_finish_analysis_stack = true;

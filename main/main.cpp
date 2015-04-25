@@ -18,8 +18,11 @@ ShareStack *main_share_stack = NULL;
 ShareStack *child_share_stack[THREAD_MAX_NUM];
 Communication *communication = NULL;
 CODE_SEG_MAP_ORIGIN_FUNCTION CSfunctionMapOriginList;
+
 extern void split_function_from_target_branch();
-extern BOOL need_omit_function(string function_name);
+extern BOOL need_omit_random_function(string function_name);
+extern BOOL need_omit_stack_function(string function_name);
+
 
 void readelf_to_find_all_functions()
 {
@@ -38,15 +41,19 @@ void readelf_to_find_all_functions()
 	return ;
 }
 
+extern void read_syscall_inst_stack_type(CodeSegment *cs);
+
 void analysis_all_functions_stack()
 {
 	for(CODE_SEG_MAP_ORIGIN_FUNCTION_ITERATOR it = CSfunctionMapOriginList.begin(); it!=CSfunctionMapOriginList.end(); it++){
 		if(!it->first->isSO){
+			string path = it->first->file_path;
 			for(MAP_ORIGIN_FUNCTION_ITERATOR iter = it->second->begin(); iter!=it->second->end(); iter++){
 				Function *func = iter->second;
-				func->analysis_stack(ShareStack::stack_map);
-				//func->dump_function_origin();
+				func->analysis_stack_v2();
 			}
+		}else{//we only handle syscall instruction
+			read_syscall_inst_stack_type(it->first);
 		}
 	}
 	return ;
@@ -59,10 +66,10 @@ void random_all_functions()
 	progress_begin();
 	for(CODE_SEG_MAP_ORIGIN_FUNCTION_ITERATOR it = CSfunctionMapOriginList.begin(); it!=CSfunctionMapOriginList.end(); it++){
 		string path = it->first->file_path;
-		if(path.find("/lib/ld-2.17.so")==string::npos && path.find("/lib/libpthread.so")==string::npos){
+		if(path.find("/lib/ld-2.17.so")==string::npos){
 			for(MAP_ORIGIN_FUNCTION_ITERATOR iter = it->second->begin(); iter!=it->second->end(); iter++){
 				Function *func = iter->second;
-				if(!need_omit_function(func->get_function_name()))
+				if(!need_omit_random_function(func->get_function_name()))
 					func->random_function(map_inst_info->get_curr_mapping_oc(), map_inst_info->get_curr_mapping_co());
 			}
 		}
@@ -78,10 +85,10 @@ void erase_and_intercept_all_functions()
 		CodeCache *code_cache = it->first->code_cache;
 		code_cache->erase_old_cc();
 		string path = it->first->file_path;
-		if(path.find("lib/ld-2.17.so")==string::npos && path.find("/lib/libpthread.so")==string::npos){
+		if(path.find("lib/ld-2.17.so")==string::npos){
 			for(MAP_ORIGIN_FUNCTION_ITERATOR iter = it->second->begin(); iter!=it->second->end(); iter++){
 				Function *func = iter->second;
-				if(!need_omit_function(func->get_function_name())){
+				if(!need_omit_random_function(func->get_function_name())){
 					func->erase_function();	
 					func->intercept_to_random_function();
 				}
@@ -137,6 +144,7 @@ BOOL relocate_retaddr_and_pc()
 		can_be_random = child_share_stack[idx]->check_relocate(map_inst_info);
 		if(!can_be_random)
 			return false;
+		
 	}
 	
 	main_share_stack->relocate_return_address(map_inst_info);
@@ -188,7 +196,6 @@ int main(int argc, const char *argv[])
 	analysis_all_functions_stack();
 	BLUE("[ 4] Finish analysis function stack\n");
 	// loop for random
-	
 	BOOL continue_to_run = true;
 	while(1){
 		// 5.flush
@@ -221,6 +228,7 @@ restop:
 		// 9.erase and intercept
 		erase_and_intercept_all_functions();
 		PRINT("         2. Finish redirecting the superblock entry and erasing old code\n");
+		
 		// 11.continue to run
 		INFO("[ 5] <5> Wake up and continue the working process\n");
 		continue_to_run = communication->continue_process();

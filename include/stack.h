@@ -20,7 +20,7 @@ private:
 	COMMUNICATION_INFO *info;
 public:
 	static map<ORIGIN_ADDR, STACK_TYPE> stack_map; 
-
+	static map<ORIGIN_ADDR, LIB_STACK_TYPE> lib_stack_map;
 	ShareStack(ORIGIN_ADDR origin_start, SIZE size, ADDR curr_start, BOOL is_main_stack)
 		: origin_stack_start(origin_start), current_stack_start(curr_start), stack_size(size), _is_main_stack(is_main_stack)
 	{
@@ -41,6 +41,7 @@ public:
 	void relocate_return_address(MapInst *map_inst);
 	BOOL check_relocate(MapInst *map_inst);
 	void relocate_current_pc(MapInst *map_inst);
+	static void dump_stack_type_by_origin_addr(ORIGIN_ADDR addr);
 };
 
 

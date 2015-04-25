@@ -5,7 +5,7 @@
 
 extern CODE_SEG_MAP_ORIGIN_FUNCTION CSfunctionMapOriginList;
 
-static CodeSegment *find_cs(ORIGIN_ADDR addr)
+CodeSegment *find_cs(ORIGIN_ADDR addr)
 {
 	for(vector<CodeSegment*>::iterator it = code_segment_vec.begin(); it!=code_segment_vec.end(); it++){
 		CodeSegment *cs = *it;

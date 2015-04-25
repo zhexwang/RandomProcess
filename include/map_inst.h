@@ -10,8 +10,20 @@ typedef enum stack_type{
 	S_RBP_A_4 = 0,
 	S_RSP,
 	S_RSP_A_4,
+	S_NONE,
 	S_TYPE_SUM,
-}STACK_TYPE;
+}__attribute__((packed))STACK_TYPE;
+
+typedef enum stack_reg{
+	STACK_RSP = 0,
+	STACK_RBP,
+	STACK_NONE,
+}__attribute__((packed))STACK_REG;
+
+typedef struct lib_stack_type{
+	STACK_REG reg;
+	INT8 op; 
+}LIB_STACK_TYPE;
 
 class MapInst
 {

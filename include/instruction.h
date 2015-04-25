@@ -63,7 +63,12 @@ public:
 		ASSERT(inst_size>=2);
 		return inst_code[1];
 	}
-		
+
+	UINT8 get_inst_code_third_byte()
+	{
+		ASSERT(inst_size>=3);
+		return inst_code[2];
+	}		
 	void get_inst_code(UINT8 *encode, SIZE size)
 	{
 		ASSERT(size==inst_size);
@@ -90,6 +95,10 @@ public:
 	BOOL isOrdinaryInst()
 	{
 		return inst_type==NONE_TYPE;
+	}
+	BOOL isSyscall()
+	{
+		return _dInst->opcode==I_SYSCALL;
 	}
 	BOOL isCall()
 	{

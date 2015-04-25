@@ -83,11 +83,9 @@ ORIGIN_ADDR MapInst::get_old_origin_addr(ORIGIN_ADDR addr, BOOL is_in_cc)
 
 ORIGIN_ADDR MapInst::get_new_origin_addr(ORIGIN_ADDR addr, BOOL is_in_cc)
 {
-	if(is_in_cc){
-		UINT8 new_idx = curr_idx==0 ? 1 : 0;
-		
-		MAP_CO_ITERATOR new_iter = map_cc_to_origin[new_idx].find(addr);
-		ASSERT(new_iter!=map_cc_to_origin[new_idx].end());
+	if(is_in_cc){		
+		MAP_CO_ITERATOR new_iter = map_cc_to_origin[curr_idx].find(addr);
+		ASSERT(new_iter!=map_cc_to_origin[curr_idx].end());
 		ORIGIN_ADDR origin_inst_addr = new_iter->second;
 		return origin_inst_addr;
 	}else

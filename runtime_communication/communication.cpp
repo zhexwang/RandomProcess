@@ -23,7 +23,6 @@ BOOL send_signal(COMMUNICATION_INFO *info)
 	if(info->process_id==0)
 		return false;
 
-	INFO("stop %d\n", info->process_id);
 	INT32 ret = tkill(info->process_id, SIGUSR1);
 	if(ret==-1){
 		if(errno==EINVAL || errno==ESRCH)
@@ -31,7 +30,7 @@ BOOL send_signal(COMMUNICATION_INFO *info)
 		else
 			ASSERT(0);
 	}
-		
+	
 	// 3.wait main process has already stop
 	while(info->flag!=1){
 		if(info->process_id==0)
@@ -39,6 +38,7 @@ BOOL send_signal(COMMUNICATION_INFO *info)
 		
 		sched_yield();
 	}
+	//INFO("[%4d] stopped\n", info->process_id);
 	return true;
 }
 
@@ -66,7 +66,7 @@ BOOL set_flag(COMMUNICATION_INFO *info)
 	if(info->process_id==0)
 		return false;
 
-	INFO("continue %d\n", info->process_id);
+	//INFO("continue %d\n", info->process_id);
 
 	ASSERT(info->flag==1);
 	info->flag = 0;
