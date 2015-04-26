@@ -42,6 +42,7 @@ void readelf_to_find_all_functions()
 }
 
 extern void read_syscall_inst_stack_type(CodeSegment *cs);
+extern void read_unused_rbp_func_return_addr();
 
 void analysis_all_functions_stack()
 {
@@ -56,6 +57,8 @@ void analysis_all_functions_stack()
 			read_syscall_inst_stack_type(it->first);
 		}
 	}
+	//record some function do not use rbp
+	read_unused_rbp_func_return_addr();
 	return ;
 }
 
@@ -204,7 +207,7 @@ int main(int argc, const char *argv[])
 		flush();
 		map_inst_info->flush();
 		// 6.random
-		INFO("[ 5] <2> Begin random: ");
+		INFO("[ 5] <2> Begin to random: ");
 		random_all_functions();
 		INFO(" Finish random\n");
 restop:		
@@ -237,7 +240,7 @@ restop:
 		
 		random_times++;
 		// 12.random interval
-		wait_seconds_to_continue_random(5);
+		wait_seconds_to_continue_random(2);
 	}
 	BLUE("[ 6] Live Rerandomization is finished. Thanks for using, bye!\n");
 	return 0;

@@ -15,7 +15,7 @@ class BasicBlock
 {
 private:
 	vector<Instruction *> instruction_vec;
-	vector<BasicBlock *> prev_bb_vec;
+	//vector<BasicBlock *> prev_bb_vec;
 	BasicBlock *fallthrough_bb;
 	vector<BasicBlock *> target_bb_vec;
 	CODE_CACHE_ADDR _curr_copy_addr;
@@ -83,7 +83,7 @@ public:
 	{
 		return instruction_vec.end();
 	}
-	
+	/*
 	BB_ITER prev_begin()
 	{
 		return prev_bb_vec.begin();
@@ -91,7 +91,7 @@ public:
 	BB_ITER prev_end()
 	{
 		return prev_bb_vec.end();
-	}
+	}*/
 	
 	BB_ITER target_begin()
 	{
@@ -115,7 +115,7 @@ public:
 	}
 	void add_prev_bb(BasicBlock *prev_bb)
 	{
-		prev_bb_vec.push_back(prev_bb);
+		;//prev_bb_vec.push_back(prev_bb);
 	}
 	void add_target_bb(BasicBlock *target_bb)
 	{

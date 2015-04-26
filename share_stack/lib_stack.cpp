@@ -9,16 +9,32 @@ typedef struct lib_stack_item{
 }LIB_STACK_ITEM;
 
 LIB_STACK_ITEM libc_stack[] = {
-		{0xdfa30, {STACK_RSP, 0x0}},
-		{0xdfb0d, {STACK_RSP, 0x8}},
-		{0xdf74d, {STACK_RSP, 0x8}},
-		{0xdfaad, {STACK_RSP, 0x8}},
+		{0xdfa30, {STACK_RSP, 0}},
+		{0xdfb0d, {STACK_RSP, 8}},
+		{0xdf74d, {STACK_RSP, 8}},
+		{0xdfaad, {STACK_RSP, 8}},
 };
 
 LIB_STACK_ITEM libpthread_stack[] = {
 		{0xc73c, {STACK_RSP, 0}},
 		{0xb85c, {STACK_RSP, 0x28}},
 		{0xc778, {STACK_RSP, 0}},
+		{0x8165, {STACK_RBP, 8}},
+		{0xe585, {STACK_RSP, 16}},
+		{0xe3f4, {STACK_RSP, 16}},
+		{0xc1f3, {STACK_RSP, 0}},
+};
+
+typedef struct unused_rbp_func{
+	string func_name;
+	LIB_STACK_TYPE type;
+}UNUSED_RBP_FUNC;//in lib
+
+UNUSED_RBP_FUNC unused_rbp_func_return[] = {
+		{"__pthread_cond_wait", {STACK_RSP, 0x28}},
+		{"__pthread_cond_broadcast", {STACK_RSP, 0x0}},
+		{"__pthread_barrier_wait", {STACK_RSP, 0x0}},
+		{"__pthread_cond_signal", {STACK_RSP, 0x0}},
 };
 
 void read_syscall_inst_stack_type(CodeSegment *cs)
@@ -42,3 +58,12 @@ void read_syscall_inst_stack_type(CodeSegment *cs)
 
 	}
 }
+
+void read_unused_rbp_func_return_addr()
+{
+	INT32 num = sizeof(unused_rbp_func_return)/sizeof(UNUSED_RBP_FUNC);
+	ShareStack::unused_func_map.clear();
+	for(INT32 idx = 0; idx<num ; idx++)
+		ShareStack::unused_func_map.insert(make_pair(unused_rbp_func_return[idx].func_name, unused_rbp_func_return[idx].type));
+}
+

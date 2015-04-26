@@ -350,13 +350,13 @@ void BasicBlock::dump()
 	PRINT(COLOR_HIGH_GREEN"(BasicBlock *)%p[0x%lx-0x%lx](%d)[RandomEntry: 0x%lx]\n"COLOR_END, this, get_first_instruction()->get_inst_origin_addr(), 
 		get_last_instruction()->get_inst_origin_addr(), (INT32)instruction_vec.size(), _origin_copy_addr);
 	INT32 idx=0;
-	INFO("  |---Prev BasicBlock:  ");
+	INFO("  |---Prev BasicBlock:  ");/*
 	for(vector<BasicBlock*>::iterator it = prev_bb_vec.begin(); it!=prev_bb_vec.end(); it++){
 		INFO("\n  |   ");
 		PRINT("  |---<%d>(BasicBlock *)%p[0x%lx-0x%lx](%d)[RandomEntry: 0x%lx]", idx,  *it, (*it)->get_first_instruction()->get_inst_origin_addr(), 
 			(*it)->get_last_instruction()->get_inst_origin_addr(), (*it)->get_insts_num(), (*it)->get_origin_addr_after_random());
 		idx++;
-	}
+	}*/
 	if(idx==0)
 		PRINT("NULL");
 	INFO("\n  |---Target BasicBlock:  ");
