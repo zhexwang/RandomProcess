@@ -27,7 +27,7 @@ extern BOOL need_omit_stack_function(string function_name);
 void readelf_to_find_all_functions()
 {
 	for(vector<CodeSegment*>::iterator it = code_segment_vec.begin(); it<code_segment_vec.end(); it++){
-		if(!(*it)->is_code_cache && !(*it)->is_stack){
+		if(!(*it)->is_code_cache && !(*it)->is_stack && !(*it)->is_libsc_privated){
 			//map origin
 			MAP_ORIGIN_FUNCTION *map_origin_function = new MAP_ORIGIN_FUNCTION();
 			CSfunctionMapOriginList.insert(CODE_SEG_MAP_ORIGIN_FUNCTION_PAIR(*it, map_origin_function));
@@ -47,14 +47,16 @@ extern void read_unused_rbp_func_return_addr();
 void analysis_all_functions_stack()
 {
 	for(CODE_SEG_MAP_ORIGIN_FUNCTION_ITERATOR it = CSfunctionMapOriginList.begin(); it!=CSfunctionMapOriginList.end(); it++){
-		if(!it->first->isSO){
-			string path = it->first->file_path;
-			for(MAP_ORIGIN_FUNCTION_ITERATOR iter = it->second->begin(); iter!=it->second->end(); iter++){
-				Function *func = iter->second;
-				func->analysis_stack_v2();
+		if( !it->first->is_libsc_privated){
+			if(!it->first->isSO){
+				string path = it->first->file_path;
+				for(MAP_ORIGIN_FUNCTION_ITERATOR iter = it->second->begin(); iter!=it->second->end(); iter++){
+					Function *func = iter->second;
+					func->analysis_stack_v2();
+				}
+			}else{//we only handle syscall instruction
+				read_syscall_inst_stack_type(it->first);
 			}
-		}else{//we only handle syscall instruction
-			read_syscall_inst_stack_type(it->first);
 		}
 	}
 	//record some function do not use rbp
@@ -69,7 +71,7 @@ void random_all_functions()
 	progress_begin();
 	for(CODE_SEG_MAP_ORIGIN_FUNCTION_ITERATOR it = CSfunctionMapOriginList.begin(); it!=CSfunctionMapOriginList.end(); it++){
 		string path = it->first->file_path;
-		if(path.find("/lib/ld-2.17.so")==string::npos){
+		if(!it->first->is_libsc_privated && path.find("/lib/ld-2.17.so")==string::npos){
 			for(MAP_ORIGIN_FUNCTION_ITERATOR iter = it->second->begin(); iter!=it->second->end(); iter++){
 				Function *func = iter->second;
 				if(!need_omit_random_function(func->get_function_name()))
@@ -88,7 +90,7 @@ void erase_and_intercept_all_functions()
 		CodeCache *code_cache = it->first->code_cache;
 		code_cache->erase_old_cc();
 		string path = it->first->file_path;
-		if(path.find("lib/ld-2.17.so")==string::npos){
+		if(!it->first->is_libsc_privated && path.find("lib/ld-2.17.so")==string::npos){
 			for(MAP_ORIGIN_FUNCTION_ITERATOR iter = it->second->begin(); iter!=it->second->end(); iter++){
 				Function *func = iter->second;
 				if(!need_omit_random_function(func->get_function_name())){

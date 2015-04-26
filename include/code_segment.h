@@ -26,6 +26,7 @@ public:
 	BOOL is_code_cache;
 	BOOL is_stack;
 	BOOL isSO;
+	BOOL is_libsc_privated;
 	INT32 shm_fd;
 	CodeCache *code_cache;
 	//profile data
@@ -36,7 +37,7 @@ public:
 public:
 	CodeSegment(ORIGIN_ADDR regionStart, SIZE regionSize, string codePath, string shmName, BOOL isCodeCache, BOOL isStack)
 		:code_start(regionStart), code_size(regionSize), file_path(codePath), shm_name(shmName),is_code_cache(isCodeCache), is_stack(isStack)
-		, code_cache(NULL)
+		, is_libsc_privated(true), code_cache(NULL)
 	{
 		open_shm();
 

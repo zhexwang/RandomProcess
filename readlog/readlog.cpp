@@ -144,6 +144,7 @@ void ReadLog::init_profile_log()
 			name = image_path.substr(found+1);
 
 		array[idx] = find_cs(name);
+		array[idx]->is_libsc_privated = false;
 	}
 
 	string padding;

@@ -38,24 +38,31 @@ SIZE BasicBlock::copy_random_insts(ADDR curr_target_addr, ORIGIN_ADDR origin_tar
 					inst_copy_size += 0x5;
 					RELOCATION_ITEM reloc_info = {REL32_BB_PTR, (curr_target_addr+1), origin_target_addr+5, (ADDR)fallthrough_bb};
 					relocation.push_back(reloc_info);
-					//record
-					ORIGIN_ADDR inst_origin_addr = (*iter)->get_inst_origin_addr();
-					map_origin_to_cc.insert(make_pair(inst_origin_addr, origin_target_addr));	
-					map_cc_to_origin.insert(make_pair(origin_target_addr, inst_origin_addr));
 					//instrument fallthrough
 					JMP_REL32(0x0, curr_target_addr);
 				}else{
 					switch((*iter)->get_inst_opcode()){
+						case I_NOP:{
+							ORIGIN_ADDR next_inst_addr = (*iter)->get_inst_origin_addr() + (*iter)->get_inst_size();
+							INT64 offset = next_inst_addr - origin_target_addr - 0x5;
+							ASSERT((offset > 0 ? offset : -offset) < 0x7fffffff);
+							JMP_REL32(offset, curr_target_addr);
+							inst_copy_size = 5;
+							}break;
 						case I_HLT:
-						case I_NOP:	
-						case I_UD2:
-							break;							
+						case I_UD2:{
+							INV_INS_1(curr_target_addr);
+							inst_copy_size = 1;
+							}break;							
 						default:
 							ASSERT(0);
-					}	
-					INV_INS_1(curr_target_addr);
-					inst_copy_size = 1;
+					}						
 				}
+				
+				//record
+				ORIGIN_ADDR inst_origin_addr = (*iter)->get_inst_origin_addr();
+				map_origin_to_cc.insert(make_pair(inst_origin_addr, origin_target_addr));	
+				map_cc_to_origin.insert(make_pair(origin_target_addr, inst_origin_addr));
 			}
 		}else{//handle special instructions 
 			ASSERT((*iter)==get_last_instruction());
@@ -350,13 +357,13 @@ void BasicBlock::dump()
 	PRINT(COLOR_HIGH_GREEN"(BasicBlock *)%p[0x%lx-0x%lx](%d)[RandomEntry: 0x%lx]\n"COLOR_END, this, get_first_instruction()->get_inst_origin_addr(), 
 		get_last_instruction()->get_inst_origin_addr(), (INT32)instruction_vec.size(), _origin_copy_addr);
 	INT32 idx=0;
-	INFO("  |---Prev BasicBlock:  ");/*
+	INFO("  |---Prev BasicBlock:  ");
 	for(vector<BasicBlock*>::iterator it = prev_bb_vec.begin(); it!=prev_bb_vec.end(); it++){
 		INFO("\n  |   ");
 		PRINT("  |---<%d>(BasicBlock *)%p[0x%lx-0x%lx](%d)[RandomEntry: 0x%lx]", idx,  *it, (*it)->get_first_instruction()->get_inst_origin_addr(), 
 			(*it)->get_last_instruction()->get_inst_origin_addr(), (*it)->get_insts_num(), (*it)->get_origin_addr_after_random());
 		idx++;
-	}*/
+	}
 	if(idx==0)
 		PRINT("NULL");
 	INFO("\n  |---Target BasicBlock:  ");
