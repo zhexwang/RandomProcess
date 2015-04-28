@@ -18,10 +18,12 @@ ShareStack *main_share_stack = NULL;
 ShareStack *child_share_stack[THREAD_MAX_NUM];
 Communication *communication = NULL;
 CODE_SEG_MAP_ORIGIN_FUNCTION CSfunctionMapOriginList;
+INT32 superblock_sum = 0;
 
 extern void split_function_from_target_branch();
 extern BOOL need_omit_random_function(string function_name);
 extern BOOL need_omit_stack_function(string function_name);
+extern BOOL need_omit_analysis_stack_cs(string cs_name);
 
 
 void readelf_to_find_all_functions()
@@ -44,15 +46,29 @@ void readelf_to_find_all_functions()
 extern void read_syscall_inst_stack_type(CodeSegment *cs);
 extern void read_unused_rbp_func_return_addr();
 
+INT32 analysis_function_num()
+{
+	INT32 ret = 0;
+	for(CODE_SEG_MAP_ORIGIN_FUNCTION_ITERATOR it = CSfunctionMapOriginList.begin(); it!=CSfunctionMapOriginList.end(); it++){
+		if(!it->first->is_libsc_privated && !need_omit_analysis_stack_cs(it->first->file_path))
+			ret += it->second->size();;
+	}
+	return ret;			
+}
 void analysis_all_functions_stack()
 {
+	INT32 idx = 0;
+	INT32 sum = analysis_function_num();
+	progress_begin();
 	for(CODE_SEG_MAP_ORIGIN_FUNCTION_ITERATOR it = CSfunctionMapOriginList.begin(); it!=CSfunctionMapOriginList.end(); it++){
 		if( !it->first->is_libsc_privated){
-			if(!it->first->isSO){
-				string path = it->first->file_path;
+			if(!need_omit_analysis_stack_cs(it->first->file_path)){
 				for(MAP_ORIGIN_FUNCTION_ITERATOR iter = it->second->begin(); iter!=it->second->end(); iter++){
 					Function *func = iter->second;
-					func->analysis_stack_v2();
+					if(!need_omit_stack_function(func->get_function_name()))
+						func->analysis_stack_v2();
+					idx++;
+					print_progress(idx, sum);
 				}
 			}else{//we only handle syscall instruction
 				read_syscall_inst_stack_type(it->first);
@@ -64,22 +80,36 @@ void analysis_all_functions_stack()
 	return ;
 }
 
-void random_all_functions()
+void calculate_random_function_sum()
 {
-	INT32 idx = 1;
-	INT32 num = CSfunctionMapOriginList.size();
-	progress_begin();
 	for(CODE_SEG_MAP_ORIGIN_FUNCTION_ITERATOR it = CSfunctionMapOriginList.begin(); it!=CSfunctionMapOriginList.end(); it++){
 		string path = it->first->file_path;
 		if(!it->first->is_libsc_privated && path.find("/lib/ld-2.17.so")==string::npos){
 			for(MAP_ORIGIN_FUNCTION_ITERATOR iter = it->second->begin(); iter!=it->second->end(); iter++){
 				Function *func = iter->second;
 				if(!need_omit_random_function(func->get_function_name()))
-					func->random_function(map_inst_info->get_curr_mapping_oc(), map_inst_info->get_curr_mapping_co());
+					superblock_sum++;
 			}
 		}
-		print_progress(idx, num);
-		idx++;
+	}
+}
+void random_all_functions()
+{
+	INT32 idx = 1;
+	progress_begin();
+	for(CODE_SEG_MAP_ORIGIN_FUNCTION_ITERATOR it = CSfunctionMapOriginList.begin(); it!=CSfunctionMapOriginList.end(); it++){
+		string path = it->first->file_path;
+		if(!it->first->is_libsc_privated && path.find("/lib/ld-2.17.so")==string::npos){
+			for(MAP_ORIGIN_FUNCTION_ITERATOR iter = it->second->begin(); iter!=it->second->end(); iter++){
+				Function *func = iter->second;
+				if(!need_omit_random_function(func->get_function_name())){
+					func->random_function(map_inst_info->get_curr_mapping_oc(), map_inst_info->get_curr_mapping_co());
+					print_progress(idx, superblock_sum);
+					idx++;
+				}
+			}
+		}
+
 	}
 	return ;
 }
@@ -142,11 +172,11 @@ Function *find_function_by_addr(ORIGIN_ADDR addr)
 BOOL relocate_retaddr_and_pc()
 {
 	ASSERT(main_share_stack);
-	BOOL can_be_random = main_share_stack->check_relocate(map_inst_info);	
+	BOOL can_be_random = main_share_stack->can_stop() && main_share_stack->check_relocate(map_inst_info);	
 	if(!can_be_random)
 		return false;
 	for(INT32 idx=0; idx<THREAD_MAX_NUM; idx++){
-		can_be_random = child_share_stack[idx]->check_relocate(map_inst_info);
+		can_be_random = child_share_stack[idx]->can_stop() && child_share_stack[idx]->check_relocate(map_inst_info);
 		if(!can_be_random)
 			return false;
 		
@@ -187,31 +217,35 @@ int main(int argc, const char *argv[])
 	// 3.init log and map info
 	communication = new Communication();
 	log.init_share_log();
-	BLUE("[ 1] Finish sharing Code/CodeCache/Stack segment\n");
+	BLUE("[ 1] Finish mapping Code, CodeCache and Stack segment\n");
 	log.init_profile_log();//read indirect inst and target
 	BLUE("[ 2] Finish reading indirect profile information\n");
 	map_inst_info = new MapInst();
 	//dump_code_segment();
 	// 4.read elf to find function
+	BLUE("[ 3] Scan all superblocks and disassemble them: ");
 	readelf_to_find_all_functions();
+	//calculate superblock num
+	calculate_random_function_sum();
 	// 4.1 handle so function internal
 	split_function_from_target_branch();
-	BLUE("[ 3] Finish scanning all superblock and disassembling\n");
+	BLUE(" Finish\n");
 	// 5.find all stack map
-	analysis_all_functions_stack();
-	BLUE("[ 4] Finish analysis function stack\n");
+	BLUE("[ 4] Analysis superblock's stack: ");
+	analysis_all_functions_stack();	
+	BLUE(" Finish\n");
 	// loop for random
 	BOOL continue_to_run = true;
 	while(1){
 		// 5.flush
-		BLUE("[ 5] Iterate to random all function: %d times\n", random_times);
+		BLUE("[ 5] Iterate to random all superblocks: %d times\n", random_times);
 		INFO("[ 5] <1> Flush code cache\n");
 		flush();
 		map_inst_info->flush();
 		// 6.random
 		INFO("[ 5] <2> Begin to random: ");
 		random_all_functions();
-		INFO(" Finish random\n");
+		INFO(" Finish\n");
 restop:		
 		// 7.send signal to stop the process
 		INFO("[ 5] <3> Send signal to stop working process\n");

@@ -61,6 +61,8 @@ void Function::dump_bb_origin()
 		ERR("Do not split into BB!\n");
 }
 
+INT32 direct_profile_func_entry_sum = 0;
+
 void Function::disassemble()
 {
 	if(is_already_disasm)
@@ -80,9 +82,10 @@ void Function::disassemble()
 			
 		if(instr->isDirectJmp() || instr->isConditionBranch() || instr->isDirectCall()){
 			ORIGIN_ADDR target_addr = instr->getBranchTargetOrigin();
-			if(!is_in_function(target_addr))
+			if(!is_in_function(target_addr)){
 				_code_segment->direct_profile_func_entry.push_back(target_addr);
-			else
+				direct_profile_func_entry_sum++;
+			}else
 				ASSERT(!instr->isDirectCall() || target_addr==_origin_function_base);
 		}
 		if(instr->isIndirectJmp()){
@@ -386,6 +389,8 @@ void Function::analysis_stack_v2()
 				}else{
 					ASSERT(!isMov && !isRbpRestored);
 					ASSERT(!(*it)->isPush());//must have stack frame
+					ASSERT(!(*it)->isAddRsp());
+					ASSERT(!(*it)->isSubRsp());
 					ShareStack::stack_map.insert(make_pair((*it)->get_inst_origin_addr(), S_RSP));
 				}
 			}

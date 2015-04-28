@@ -39,7 +39,7 @@ public:
 		ASSERT((origin_addr>=origin_stack_start) && (origin_addr<=origin_stack_end));
 		return origin_addr - origin_stack_start + current_stack_start;
 	}
-
+	BOOL can_stop(){return info->can_stop==0 ? false : true;}
 	void relocate_return_address(MapInst *map_inst);
 	BOOL check_relocate(MapInst *map_inst);
 	BOOL return_address_in_unused_rbp_function(MapInst *map_inst, ORIGIN_ADDR return_address, ORIGIN_ADDR &origin_rsp);

@@ -87,15 +87,23 @@ static void disassemble_to_find_direct_target_out_of_func(ORIGIN_ADDR origin_sta
 	ci.dt = Decode64Bits;
 	ci.features = DF_STOP_ON_UNC_BRANCH | DF_STOP_ON_UNC_BRANCH;
 	//decompose the instruction
-	UINT32 dinstcount = 0;
-	_DInst _dInst[100];
-	_DecodeResult ret = distorm_decompose(&ci, _dInst, 100, &dinstcount);
-	ASSERT(ret==DECRES_SUCCESS);
-	if(_dInst[dinstcount-1].ops[0].type==O_PC){
-		ORIGIN_ADDR target_addr = INSTRUCTION_GET_TARGET(&_dInst[dinstcount-1]);
-		if(target_addr<origin_start || target_addr>=(origin_start+size))
-			direct_target_out_of_func.push_back(target_addr);
-	}
+	do{
+		UINT32 dinstcount = 0;
+		_DInst _dInst[100];
+
+		_DecodeResult ret = distorm_decompose(&ci, _dInst, 100, &dinstcount);
+		ASSERT(ret==DECRES_SUCCESS);
+		if(_dInst[dinstcount-1].ops[0].type==O_PC){
+			ORIGIN_ADDR target_addr = INSTRUCTION_GET_TARGET(&_dInst[dinstcount-1]);
+			if(target_addr<origin_start || target_addr>=(origin_start+size))
+				direct_target_out_of_func.push_back(target_addr);
+		}
+
+		SIZE decode_size = ci.nextOffset - ci.codeOffset;
+		ci.codeLen -= decode_size;
+		ci.codeOffset = ci.nextOffset;
+		ci.code  = (const UINT8 *)((ADDR)ci.code + decode_size);
+	}while(ci.codeLen>0);
 }
 
 void ReadElf::scan_and_record_function(MAP_ORIGIN_FUNCTION *map_origin_function, CodeCache *cc)
@@ -159,6 +167,7 @@ void ReadElf::scan_and_record_function(MAP_ORIGIN_FUNCTION *map_origin_function,
 			}	
 		}   
 	}
+
 	//calculate the function with size=0
 	for(vector<ORIGIN_ADDR>::iterator iter = size0_func.begin(); iter!=size0_func.end(); iter++){
 		ORIGIN_ADDR func_start = *iter;
@@ -173,19 +182,19 @@ void ReadElf::scan_and_record_function(MAP_ORIGIN_FUNCTION *map_origin_function,
 			region_end = origin_init_end;
 		else if(func_start>=origin_fini_start && func_start<origin_fini_end)
 			region_end = origin_fini_end;
-		else{
-			map_origin_function->erase(ret);
+		else
 			continue;
-		}
 
 		ORIGIN_ADDR func_end = 0;
 		if(next_inst==map_origin_function->end())
 			func_end = region_end;
 		else
 			func_end = next_inst->first;
+		
 		disassemble_to_find_direct_target_out_of_func(func_start, _code_segment->convert_origin_process_addr_to_this(func_start), 
 			(SIZE)(func_end - func_start), _code_segment->direct_profile_func_entry);
-		//delete size 0 function
-		map_origin_function->erase(ret);
 	}
+	//erase size0 function
+	for(vector<ORIGIN_ADDR>::iterator iter = size0_func.begin(); iter!=size0_func.end(); iter++)
+		map_origin_function->erase(*iter);
 }

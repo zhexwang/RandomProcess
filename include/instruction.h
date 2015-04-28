@@ -150,6 +150,14 @@ public:
 	{
 		return (_dInst.opcode==I_POP) && (_dInst.ops[0].type==O_REG) && (_dInst.ops[0].index==R_RBP);
 	}
+	BOOL isAddRsp()
+	{
+		return (_dInst.opcode==I_ADD) && (_dInst.ops[0].type==O_REG) && (_dInst.ops[0].index==R_RSP) && (_dInst.ops[1].type==O_IMM);
+	}
+	BOOL isSubRsp()
+	{
+		return (_dInst.opcode==I_SUB) && (_dInst.ops[0].type==O_REG) && (_dInst.ops[0].index==R_RSP) && (_dInst.ops[1].type==O_IMM);
+	}
 	ORIGIN_ADDR getBranchTargetOrigin()
 	{
 		ASSERT(isDirectJmp()|| isConditionBranch()|| isDirectCall());

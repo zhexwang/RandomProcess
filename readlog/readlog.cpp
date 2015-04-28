@@ -122,6 +122,8 @@ void ReadLog::init_share_log()
 	share_log_is_init = true;
 }
 
+INT32 indirect_inst_log_sum = 0;
+
 void ReadLog::init_profile_log()
 {
 	ASSERT(share_log_is_init);
@@ -160,6 +162,7 @@ void ReadLog::init_profile_log()
 		ORIGIN_ADDR curr_inst_addr = curr_cs->code_start+inst;
 		ORIGIN_ADDR target_inst_addr = target_cs->code_start+target;
 		curr_cs->indirect_inst_map.insert(make_pair(curr_inst_addr, target_inst_addr));
+		indirect_inst_log_sum++;
 	}
 
 	//extened indirect log by hand
@@ -177,6 +180,7 @@ void ReadLog::init_profile_log()
 			ORIGIN_ADDR curr_inst_addr = curr_cs->code_start + indirect_profile_by_hand[idx].indirect_inst_offset;
 			ORIGIN_ADDR target_inst_addr = target_cs->code_start + indirect_profile_by_hand[idx].indirect_target_offset;
 			curr_cs->indirect_inst_map.insert(make_pair(curr_inst_addr, target_inst_addr));
+			indirect_inst_log_sum++;
 		}
 		idx++;
 	}

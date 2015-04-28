@@ -17,8 +17,14 @@ CodeSegment *find_cs(ORIGIN_ADDR addr)
 	return NULL;
 }
 
+extern INT32 indirect_inst_log_sum;
+extern INT32 direct_profile_func_entry_sum;
 void split_function_from_target_branch()
 {
+	INT32 idx = 0;
+	INT32 sum = indirect_inst_log_sum + direct_profile_func_entry_sum;
+	
+	progress_begin();
 	for(vector<CodeSegment*>::iterator it = code_segment_vec.begin(); it!=code_segment_vec.end(); it++){
 		if(!(*it)->is_stack && !(*it)->is_code_cache){
 			//find all indirect target
@@ -67,6 +73,8 @@ void split_function_from_target_branch()
 						}
 					}
 				}
+				idx++;
+				print_progress(idx, sum);
 			}
 			//find all direct target
 			for(vector<ORIGIN_ADDR>::iterator entry_iter = (*it)->direct_profile_func_entry.begin(); 
@@ -83,9 +91,10 @@ void split_function_from_target_branch()
 						}
 					}
 				}
+				idx++;
+				print_progress(idx, sum);
 			}
 		}
 	}
-
 }
 

@@ -13,6 +13,10 @@ LIB_STACK_ITEM libc_stack[] = {
 		{0xdfb0d, {STACK_RSP, 8}},
 		{0xdf74d, {STACK_RSP, 8}},
 		{0xdfaad, {STACK_RSP, 8}},
+		{0xe5aee, {STACK_RBP, 8}},
+		{0xdfa90, {STACK_RSP, 0}},
+		{0xdfaf0, {STACK_RSP, 0}},
+		{0xe9ec7, {STACK_RSP, 0}},
 };
 
 LIB_STACK_ITEM libpthread_stack[] = {
