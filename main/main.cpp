@@ -172,6 +172,9 @@ Function *find_function_by_addr(ORIGIN_ADDR addr)
 BOOL relocate_retaddr_and_pc()
 {
 	ASSERT(main_share_stack);
+	if(!main_share_stack->can_stop())
+		ERR("Main thread can not be stopped!\n");
+	
 	BOOL can_be_random = main_share_stack->can_stop() && main_share_stack->check_relocate(map_inst_info);	
 	if(!can_be_random)
 		return false;

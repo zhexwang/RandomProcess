@@ -1,6 +1,7 @@
 #include "function.h"
 #include "inst_macro.h"
 #include "stack.h"
+#include "debug-config.h"
 #include <time.h>
 #include <set>
 
@@ -183,6 +184,7 @@ void random_array(INT32 *array, INT32 num)
 		array[idx] = temp;
 	}
 }
+BOOL need_trace_debug = false;
 
 void Function::random_function(multimap<ORIGIN_ADDR, ORIGIN_ADDR> &map_origin_to_cc, 
 		map<ORIGIN_ADDR, ORIGIN_ADDR> &map_cc_to_origin)
@@ -203,7 +205,12 @@ void Function::random_function(multimap<ORIGIN_ADDR, ORIGIN_ADDR> &map_origin_to
 	vector<RELOCATION_ITEM> relocation, relocation_temp;
 	// 3.1 copy random insts
 	ASSERT((_random_cc_start==0) && (_random_cc_origin_start==0) && (_random_cc_size==0));
-	
+#ifdef _DEBUG_BB_TRACE
+	if(_function_name.find("_IO_vfprintf")!=string::npos){
+		need_trace_debug = true;
+	}else
+		need_trace_debug = false;
+#endif
 	SIZE bb_copy_size = 0;	
 	_random_cc_start = cc_curr_addr;
 	_random_cc_origin_start = cc_origin_addr;

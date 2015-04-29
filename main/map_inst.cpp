@@ -18,7 +18,6 @@ ORIGIN_ADDR MapInst::get_new_addr_from_old(ORIGIN_ADDR old_inst_addr, BOOL is_in
 		MAP_CO_ITERATOR old_iter = map_cc_to_origin[old_idx].find(old_inst_addr);
 		ASSERT(old_iter!=map_cc_to_origin[old_idx].end());
 		ORIGIN_ADDR origin_inst_addr = old_iter->second;
-		
 		//find old index
 		MAP_OC_PAIR old_range = map_origin_to_cc[old_idx].equal_range(origin_inst_addr);
 		ASSERT((old_range.first)!=(old_range.second));

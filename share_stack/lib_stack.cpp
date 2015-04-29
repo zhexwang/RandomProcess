@@ -17,6 +17,9 @@ LIB_STACK_ITEM libc_stack[] = {
 		{0xdfa90, {STACK_RSP, 0}},
 		{0xdfaf0, {STACK_RSP, 0}},
 		{0xe9ec7, {STACK_RSP, 0}},
+		{0xe9f57, {STACK_RSP, 0}},
+		{0xfa9ae, {STACK_RSP, 16}},
+		{0xfa9df, {STACK_RSP, 16}},
 };
 
 LIB_STACK_ITEM libpthread_stack[] = {
@@ -27,6 +30,8 @@ LIB_STACK_ITEM libpthread_stack[] = {
 		{0xe585, {STACK_RSP, 16}},
 		{0xe3f4, {STACK_RSP, 16}},
 		{0xc1f3, {STACK_RSP, 0}},
+		{0xe8d0, {STACK_RSP, 0}},
+		{0xe88d, {STACK_RSP, 8}},
 };
 
 typedef struct unused_rbp_func{
@@ -36,9 +41,13 @@ typedef struct unused_rbp_func{
 
 UNUSED_RBP_FUNC unused_rbp_func_return[] = {
 		{"__pthread_cond_wait", {STACK_RSP, 0x28}},
+		{"pthread_cond_wait", {STACK_RSP, 0x28}},
 		{"__pthread_cond_broadcast", {STACK_RSP, 0x0}},
+		{"pthread_cond_broadcast", {STACK_RSP, 0x0}},
 		{"__pthread_barrier_wait", {STACK_RSP, 0x0}},
+		{"pthread_barrier_wait", {STACK_RSP, 0x0}},
 		{"__pthread_cond_signal", {STACK_RSP, 0x0}},
+		{"pthread_cond_signal", {STACK_RSP, 0x0}},
 };
 
 void read_syscall_inst_stack_type(CodeSegment *cs)

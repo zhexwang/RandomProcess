@@ -81,7 +81,7 @@ public:
 	void erase_old_cc()
 	{
 		UINT8 old_idx = curr_idx==0 ? 1 : 0;
-		memset((void*)code_cache_start[old_idx], 0, (SIZE)(code_cache_end[old_idx] - code_cache_start[old_idx]));
+		memset((void*)code_cache_start[old_idx], 0xd6, (SIZE)(code_cache_end[old_idx] - code_cache_start[old_idx]));
 		current_code_cache_ptr[old_idx] = code_cache_start[old_idx];
 		origin_process_code_cache_ptr[old_idx] = origin_process_code_cache_start[old_idx];
 	}

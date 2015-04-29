@@ -11,6 +11,10 @@ static string omit_random_function[]={
 	"__memset_sse2",
 	"__memmove_ssse3_back",
 	"__strcat_sse2_unaligned",
+	//gdb debug
+	"__nptl_create_event",
+	"__nptl_death_event",
+	"_IO_vfprintf_internal",
 };
 
 set<string> omit_random_function_set(omit_random_function, \
@@ -25,6 +29,10 @@ static string omit_stack_function[]={
 	"__ieee754_powl",
 	"_Z12CumNormalInvd",
 	"parse_cqm",
+	"SHA1_Final",
+	"SHA1_Update",
+	"sha1_block_data_order",
+	
 };
 
 set<string> omit_stack_function_set(omit_stack_function, \

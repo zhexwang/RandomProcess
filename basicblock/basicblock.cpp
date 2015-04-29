@@ -2,6 +2,7 @@
 #include "inst_macro.h"
 #include "debug-config.h"
 #include <map>
+extern BOOL need_trace_debug;
 
 SIZE BasicBlock::copy_random_insts(ADDR curr_target_addr, ORIGIN_ADDR origin_target_addr, vector<RELOCATION_ITEM> &relocation
 	, multimap<ORIGIN_ADDR, ORIGIN_ADDR> &map_origin_to_cc, map<ORIGIN_ADDR, ORIGIN_ADDR> &map_cc_to_origin)
@@ -17,12 +18,14 @@ SIZE BasicBlock::copy_random_insts(ADDR curr_target_addr, ORIGIN_ADDR origin_tar
 	
 #ifdef _DEBUG_BB_TRACE
 	//insert debug inst
-	ADDR curr_target_bk = curr_target_addr;
-	ORIGIN_ADDR entry_addr = get_origin_addr_before_random();
-	MOVL_IMM32(0x10000, (INT32)entry_addr, curr_target_bk);
-	MOVL_IMM32(0x10004, (INT32)(entry_addr>>32), curr_target_bk);
-	inst_copy_size = curr_target_bk - curr_target_addr;
-	cc_size +=inst_copy_size;
+	if(need_trace_debug){
+		ADDR curr_target_bk = curr_target_addr;
+		ORIGIN_ADDR entry_addr = get_origin_addr_before_random();
+		MOVL_IMM32(0x10000, (INT32)entry_addr, curr_target_bk);
+		MOVL_IMM32(0x10004, (INT32)(entry_addr>>32), curr_target_bk);
+		inst_copy_size = curr_target_bk - curr_target_addr;
+		cc_size +=inst_copy_size;
+	}
 #endif
 
 	for(vector<Instruction*>::iterator iter = instruction_vec.begin(); (iter<=instruction_vec.end() && iter!=end()); iter++){
@@ -145,6 +148,9 @@ SIZE BasicBlock::random_unordinary_inst(Instruction *inst, CODE_CACHE_ADDR curr_
 			JMP_REL32(0x0, curr_target_addr);
 			return copy_size+0x5;
 		}else{
+			//record second instruction mapping
+			map_origin_to_cc.insert(make_pair(inst_origin_addr, origin_target_addr));	
+			map_cc_to_origin.insert(make_pair(origin_target_addr, inst_origin_addr));
 			INV_INS_1(curr_target_addr);
 			return copy_size+0x1;
 		}
