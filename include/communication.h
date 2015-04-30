@@ -11,7 +11,7 @@
 using namespace std;
 
 typedef struct communication_info{
-	volatile ORIGIN_ADDR origin_rbp;
+	volatile ORIGIN_ADDR jump_table_base;
 	struct ucontext *origin_uc;
 	volatile pid_t process_id;
 	volatile UINT8 can_stop;//0: can not; 1:can

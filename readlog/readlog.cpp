@@ -1,5 +1,6 @@
 #include "type.h"
 #include "readlog.h"
+#include "jump_table.h"
 
 const char *ReadLog::lib_name[] = {"libc.so", "libm.so", "ld-2.17.so", "none"};
 const INDIRECT_ITEM ReadLog::indirect_profile_by_hand[] = {
@@ -59,7 +60,7 @@ const INDIRECT_ITEM ReadLog::indirect_profile_by_hand[] = {
 
 extern ShareStack *main_share_stack ;
 extern ShareStack *child_share_stack[THREAD_MAX_NUM];
-
+extern JumpTable *jumpTable;
 extern CodeCacheManagement *cc_management;
 
 
@@ -79,13 +80,14 @@ void ReadLog::init_share_log()
 		string code_path;
 		char c;
 		INT32 cc_idx;
-		BOOL isCodeCache, isStack, isMainStack;
+		BOOL isCodeCache, isStack, isMainStack, isJumpTable;
 		ifs>>dec>>cc_idx>>hex>>region_start>>c>>region_end>>shm_name>>code_path;
 		isCodeCache = cc_idx==-1 ? true : false;
 		isStack = (cc_idx==-2 || cc_idx==-3) ? true: false;
 		isMainStack = (cc_idx==-2) ? true : false;
+		isJumpTable = (cc_idx==-4) ? true : false;
 		map_cc_array[idx] = cc_idx;
-		CodeSegment *cs = new CodeSegment(region_start, region_end-region_start, code_path, shm_name, isCodeCache, isStack);
+		CodeSegment *cs = new CodeSegment(region_start, region_end-region_start, code_path, shm_name, isCodeCache, isStack, isJumpTable);
 		code_segment_vec.push_back(cs);
 		//code cache record
 		if(isCodeCache){
@@ -112,6 +114,12 @@ void ReadLog::init_share_log()
 				}
 			}
 		}
+		if(isJumpTable){
+			ORIGIN_ADDR origin_table_start = region_start;
+			SIZE table_size = region_end-region_start;
+			ADDR curr_table_start = (ADDR)cs->native_map_code_start;
+			jumpTable = new JumpTable(origin_table_start, curr_table_start, table_size);
+		}	
 	}
 	//3.map cc
 	for(INT32 idx=0; idx<shm_num; idx++){

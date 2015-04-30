@@ -8,6 +8,8 @@
 #include "codecache.h"
 #include "stack.h"
 #include "communication.h"
+#include "jump_table.h"
+#include "debug-config.h"
 #include <iostream>
 #include <unistd.h>
 using namespace std;
@@ -17,6 +19,7 @@ MapInst *map_inst_info = NULL;
 ShareStack *main_share_stack = NULL;
 ShareStack *child_share_stack[THREAD_MAX_NUM];
 Communication *communication = NULL;
+JumpTable *jumpTable = NULL;
 CODE_SEG_MAP_ORIGIN_FUNCTION CSfunctionMapOriginList;
 INT32 superblock_sum = 0;
 
@@ -29,7 +32,7 @@ extern BOOL need_omit_analysis_stack_cs(string cs_name);
 void readelf_to_find_all_functions()
 {
 	for(vector<CodeSegment*>::iterator it = code_segment_vec.begin(); it<code_segment_vec.end(); it++){
-		if(!(*it)->is_code_cache && !(*it)->is_stack && !(*it)->is_libsc_privated){
+		if(!(*it)->is_code_cache && !(*it)->is_stack && !(*it)->is_libsc_privated && !(*it)->is_jump_table){
 			//map origin
 			MAP_ORIGIN_FUNCTION *map_origin_function = new MAP_ORIGIN_FUNCTION();
 			CSfunctionMapOriginList.insert(CODE_SEG_MAP_ORIGIN_FUNCTION_PAIR(*it, map_origin_function));
@@ -114,6 +117,14 @@ void random_all_functions()
 	return ;
 }
 
+void set_new_jump_table()
+{
+	main_share_stack->modify_jump_table_base();
+	
+	for(INT32 idx=0; idx<THREAD_MAX_NUM; idx++)
+		child_share_stack[idx]->modify_jump_table_base();
+}
+
 void erase_and_intercept_all_functions()
 {
 	for(CODE_SEG_MAP_ORIGIN_FUNCTION_ITERATOR it = CSfunctionMapOriginList.begin(); it!=CSfunctionMapOriginList.end(); it++){
@@ -130,6 +141,11 @@ void erase_and_intercept_all_functions()
 			}
 		}
 	}
+#ifdef _USE_JUMP_TABLE
+	set_new_jump_table();
+	jumpTable->erase_old_jump_table();
+#endif
+
 	return ;
 }
 
@@ -142,6 +158,7 @@ void flush()
 		}
 	}
 	cc_management->flush();
+	jumpTable->flush();
 	return ;
 }
 
@@ -186,7 +203,8 @@ BOOL relocate_retaddr_and_pc()
 	}
 	
 	main_share_stack->relocate_return_address(map_inst_info);
-	main_share_stack->relocate_current_pc(map_inst_info);	
+	main_share_stack->relocate_current_pc(map_inst_info);
+
 	for(INT32 idx=0; idx<THREAD_MAX_NUM; idx++){
 		child_share_stack[idx]->relocate_return_address(map_inst_info);
 		child_share_stack[idx]->relocate_current_pc(map_inst_info);

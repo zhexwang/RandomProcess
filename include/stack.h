@@ -45,6 +45,7 @@ public:
 	BOOL return_address_in_unused_rbp_function(MapInst *map_inst, ORIGIN_ADDR return_address, ORIGIN_ADDR &origin_rsp);
 	void relocate_current_pc(MapInst *map_inst);
 	static void dump_stack_type_by_origin_addr(ORIGIN_ADDR addr);
+	void modify_jump_table_base();
 };
 
 

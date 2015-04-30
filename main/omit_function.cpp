@@ -15,6 +15,10 @@ static string omit_random_function[]={
 	"__nptl_create_event",
 	"__nptl_death_event",
 	"_IO_vfprintf_internal",
+	"__arch_prctl",
+	"arch_prctl",
+	"__GI_arch_prctl",
+	"__GI___arch_prctl",
 };
 
 set<string> omit_random_function_set(omit_random_function, \

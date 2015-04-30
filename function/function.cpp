@@ -1,6 +1,7 @@
 #include "function.h"
 #include "inst_macro.h"
 #include "stack.h"
+#include "jump_table.h"
 #include "debug-config.h"
 #include <time.h>
 #include <set>
@@ -102,7 +103,7 @@ void Function::disassemble()
 	ASSERT(security_size==1);
 	is_already_disasm = true;
 }
-
+extern JumpTable *jumpTable;
 void Function::intercept_to_random_function()
 {
 	if(!is_function_can_be_random)
@@ -110,7 +111,7 @@ void Function::intercept_to_random_function()
 
 	ASSERT(is_already_finish_random && _random_cc_origin_start!=0 && _random_cc_size!=0 && _random_cc_start!=0);
 	ASSERT(!is_already_finish_intercept);
-	
+#ifndef _USE_JUMP_TABLE
 	vector<INT64> offset;
 	for(INT32 idx=0; idx<(INT32)entry_list.size(); idx++){
 		ORIGIN_ADDR random_target = entry_list[idx].random_entry - _random_cc_start + _random_cc_origin_start;
@@ -123,6 +124,14 @@ void Function::intercept_to_random_function()
 		ADDR curr_entry = entry_list[idx].origin_entry - _origin_function_base + _function_base;
 		JMP_REL32(offset[idx], curr_entry);
 	}
+#else
+	for(INT32 idx=0; idx<(INT32)entry_list.size(); idx++){
+		ADDR curr_entry = entry_list[idx].origin_entry - _origin_function_base + _function_base;
+		ORIGIN_ADDR random_target = entry_list[idx].random_entry - _random_cc_start + _random_cc_origin_start;
+		INT32 table_idx = jumpTable->insert_target(random_target);
+		JMPIN_GS(table_idx, curr_entry);
+	}	
+#endif
 	is_already_finish_intercept = true;
 }
 
@@ -144,7 +153,7 @@ void Function::erase_function()
 BOOL Function::check_random()
 {
 	INT32 entry_num = entry_list.size();
-
+#ifndef _USE_JUMP_TABLE
 	if(entry_num==1)
 		return _function_size>=5 ? true : false; 
 
@@ -159,8 +168,24 @@ BOOL Function::check_random()
 		if(len_end>-5 && len_end<5)
 			return false;
 	}
-
 	return true ;
+#else
+	if(entry_num==1)
+		return _function_size>=8 ? true : false;
+	
+	for(INT32 idx=0; idx<(entry_num-1); idx++){
+		for(INT32 idx2 = idx+1; idx2<entry_num; idx2++){
+			INT32 len = entry_list[idx].origin_entry - entry_list[idx2].origin_entry;
+			if(len>-8 && len<8)
+				return false;
+		}
+
+		INT32 len_end = entry_list[idx].origin_entry - (_origin_function_base+_function_size);
+		if(len_end>-8 && len_end<8)
+			return false;
+	}
+	return true ;	
+#endif
 }
 
 void random_array(INT32 *array, INT32 num)
@@ -205,12 +230,7 @@ void Function::random_function(multimap<ORIGIN_ADDR, ORIGIN_ADDR> &map_origin_to
 	vector<RELOCATION_ITEM> relocation, relocation_temp;
 	// 3.1 copy random insts
 	ASSERT((_random_cc_start==0) && (_random_cc_origin_start==0) && (_random_cc_size==0));
-#ifdef _DEBUG_BB_TRACE
-	if(_function_name.find("_IO_vfprintf")!=string::npos){
-		need_trace_debug = true;
-	}else
-		need_trace_debug = false;
-#endif
+
 	SIZE bb_copy_size = 0;	
 	_random_cc_start = cc_curr_addr;
 	_random_cc_origin_start = cc_origin_addr;

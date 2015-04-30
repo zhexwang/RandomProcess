@@ -34,10 +34,11 @@ public:
 	typedef multimap<ORIGIN_ADDR, ORIGIN_ADDR>::iterator INDIRECT_MAP_ITERATOR;
 	//direct inst target
 	vector<ORIGIN_ADDR> direct_profile_func_entry;
+	BOOL is_jump_table;
 public:
-	CodeSegment(ORIGIN_ADDR regionStart, SIZE regionSize, string codePath, string shmName, BOOL isCodeCache, BOOL isStack)
+	CodeSegment(ORIGIN_ADDR regionStart, SIZE regionSize, string codePath, string shmName, BOOL isCodeCache, BOOL isStack, BOOL isTable)
 		:code_start(regionStart), code_size(regionSize), file_path(codePath), shm_name(shmName),is_code_cache(isCodeCache), is_stack(isStack)
-		, is_libsc_privated(true), code_cache(NULL)
+		, is_libsc_privated(true), code_cache(NULL), is_jump_table(isTable)
 	{
 		open_shm();
 
